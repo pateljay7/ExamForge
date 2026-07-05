@@ -38,25 +38,32 @@ export default function TakeExam() {
     }
   }
 
-  if (error) return <div className="container"><p className="error">{error}</p></div>;
-  if (!exam) return <div className="container">Loading…</div>;
+  if (error && !exam) return <p className="error">{error}</p>;
+  if (!exam) return <p className="muted">Loading exam…</p>;
 
   const answered = Object.keys(answers).length;
+  const total = exam.questions.length;
+  const allAnswered = answered === total;
 
   return (
-    <div className="container">
-      <Link to="/">← Back</Link>
-      <h1>{exam.title}</h1>
+    <>
+      <Link to="/" className="back">← Back to exams</Link>
+      <div className="page-head">
+        <div>
+          <h1>{exam.title}</h1>
+          <p>
+            <span className={`badge ${exam.difficulty}`}>{exam.difficulty}</span>
+          </p>
+        </div>
+      </div>
 
       {attempts.length > 0 && (
         <div className="card">
-          <strong>Previous attempts</strong>
+          <h2 style={{ marginBottom: 6 }}>Past attempts</h2>
           {attempts.map((a) => (
-            <div className="row" key={a.id} style={{ marginTop: 6 }}>
-              <span className="muted">
-                {new Date(a.createdAt).toLocaleString()}
-              </span>
-              <Link to={`/result/${a.id}`}>
+            <div className="attempt-row" key={a.id}>
+              <span className="muted">{new Date(a.createdAt).toLocaleString()}</span>
+              <Link to={`/result/${a.id}`} className="pill-score">
                 {a.score}/{a.total}
               </Link>
             </div>
@@ -64,13 +71,22 @@ export default function TakeExam() {
         </div>
       )}
 
+      <div className="progress-bar" style={{ marginTop: 8 }}>
+        <div style={{ width: `${(answered / total) * 100}%` }} />
+      </div>
+      <p className="muted" style={{ marginBottom: 16 }}>
+        {answered} of {total} answered
+      </p>
+
       {exam.questions.map((q, i) => (
         <div className="card" key={q.id}>
-          <strong>
-            {i + 1}. {q.text}
-          </strong>
+          <div className="q-num">QUESTION {i + 1}</div>
+          <div className="q-text">{q.text}</div>
           {q.options.map((opt, oi) => (
-            <label className="option" key={oi}>
+            <label
+              className={`option ${answers[q.id] === oi ? 'selected' : ''}`}
+              key={oi}
+            >
               <input
                 type="radio"
                 name={q.id}
@@ -84,14 +100,15 @@ export default function TakeExam() {
       ))}
 
       {error && <p className="error">{error}</p>}
-      <button
-        onClick={submit}
-        disabled={submitting || answered < exam.questions.length}
-      >
-        {submitting
-          ? 'Submitting…'
-          : `Submit (${answered}/${exam.questions.length} answered)`}
-      </button>
-    </div>
+
+      <div className="submit-bar">
+        <span className="muted">
+          {allAnswered ? 'All questions answered' : `${total - answered} left`}
+        </span>
+        <button onClick={submit} disabled={submitting || !allAnswered}>
+          {submitting ? <span className="spinner" /> : 'Submit exam'}
+        </button>
+      </div>
+    </>
   );
 }

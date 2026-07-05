@@ -7,8 +7,20 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+model User {
+  id        String    @id @default(cuid())
+  email     String    @unique
+  name      String?
+  password  String
+  createdAt DateTime  @default(now())
+  exams     Exam[]
+  attempts  Attempt[]
+}
+
 model Exam {
   id         String     @id @default(cuid())
+  userId     String
+  user       User       @relation(fields: [userId], references: [id], onDelete: Cascade)
   title      String
   content    String
   difficulty String // easy | medium | hard
@@ -31,6 +43,8 @@ model Attempt {
   id        String   @id @default(cuid())
   examId    String
   exam      Exam     @relation(fields: [examId], references: [id], onDelete: Cascade)
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   answers   Json // [{ questionId, selectedIndex }]
   score     Int
   total     Int

@@ -2,6 +2,8 @@ import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { api } from '../api';
 
+const DIFFICULTIES = ['easy', 'medium', 'hard'];
+
 export default function CreateExam() {
   const nav = useNavigate();
   const [title, setTitle] = useState('');
@@ -25,44 +27,78 @@ export default function CreateExam() {
   }
 
   return (
-    <div className="container">
-      <Link to="/">← Back</Link>
-      <h1>Create Exam</h1>
-      <form onSubmit={submit}>
-        <label>Title</label>
-        <input value={title} onChange={(e) => setTitle(e.target.value)} required />
+    <>
+      <Link to="/" className="back">← Back to exams</Link>
+      <div className="page-head">
+        <div>
+          <h1>New exam</h1>
+          <p>Paste your material — AI writes multiple-choice questions from it.</p>
+        </div>
+      </div>
 
-        <label>Content / learning material</label>
-        <textarea
-          value={content}
-          onChange={(e) => setContent(e.target.value)}
-          placeholder="Paste the material to generate questions from…"
-          required
-        />
+      <div className="card">
+        <form onSubmit={submit}>
+          <label>Exam title</label>
+          <input
+            value={title}
+            onChange={(e) => setTitle(e.target.value)}
+            placeholder="e.g. Chapter 3: Cell Biology"
+            required
+          />
 
-        <label>Number of questions</label>
-        <input
-          type="number"
-          min={1}
-          max={50}
-          value={numQuestions}
-          onChange={(e) => setNumQuestions(Number(e.target.value))}
-        />
+          <label>Content / learning material</label>
+          <textarea
+            value={content}
+            onChange={(e) => setContent(e.target.value)}
+            placeholder="Paste your notes, an article, or reference text here…"
+            required
+          />
+          <p className="hint">{content.length} characters · minimum 20</p>
 
-        <label>Difficulty</label>
-        <select value={difficulty} onChange={(e) => setDifficulty(e.target.value)}>
-          <option value="easy">Easy</option>
-          <option value="medium">Medium</option>
-          <option value="hard">Hard</option>
-        </select>
+          <label>Number of questions</label>
+          <input
+            type="number"
+            min={1}
+            max={50}
+            value={numQuestions}
+            onChange={(e) => setNumQuestions(Number(e.target.value))}
+          />
 
-        {error && <p className="error">{error}</p>}
-        <p style={{ marginTop: 16 }}>
-          <button disabled={loading}>
-            {loading ? 'Generating…' : 'Generate Exam'}
+          <label>Difficulty</label>
+          <div className="segment">
+            {DIFFICULTIES.map((d) => (
+              <button
+                type="button"
+                key={d}
+                className={difficulty === d ? 'active' : ''}
+                onClick={() => setDifficulty(d)}
+              >
+                {d[0].toUpperCase() + d.slice(1)}
+              </button>
+            ))}
+          </div>
+
+          {error && <p className="error">{error}</p>}
+          <button
+            className="btn-lg"
+            disabled={loading}
+            style={{ marginTop: 22 }}
+          >
+            {loading ? (
+              <>
+                <span className="spinner" /> Generating questions…
+              </>
+            ) : (
+              'Generate exam'
+            )}
           </button>
-        </p>
-      </form>
-    </div>
+          {loading && (
+            <p className="hint" style={{ marginTop: 10 }}>
+              This can take a moment while the AI writes and checks each question.
+            </p>
+          )}
+        </form>
+      </div>
+    </>
   );
 }

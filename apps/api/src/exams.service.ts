@@ -10,7 +10,7 @@ export class ExamsService {
     private ai: AiService,
   ) {}
 
-  async create(dto: CreateExamDto) {
+  async create(userId: string, dto: CreateExamDto) {
     const generated = await this.ai.generateQuestions(
       dto.content,
       dto.numQuestions,
@@ -19,6 +19,7 @@ export class ExamsService {
 
     const exam = await this.prisma.exam.create({
       data: {
+        userId,
         title: dto.title,
         content: dto.content,
         difficulty: dto.difficulty,
@@ -31,29 +32,29 @@ export class ExamsService {
           })),
         },
       },
-      include: { _count: { select: { questions: true } } },
     });
 
     return { id: exam.id, title: exam.title, difficulty: exam.difficulty };
   }
 
-  list() {
+  list(userId: string) {
     return this.prisma.exam.findMany({
+      where: { userId },
       orderBy: { createdAt: 'desc' },
       select: {
         id: true,
         title: true,
         difficulty: true,
         createdAt: true,
-        _count: { select: { questions: true } },
+        _count: { select: { questions: true, attempts: true } },
       },
     });
   }
 
-  // Exam for taking — correctIndex omitted.
-  async getForTaking(id: string) {
-    const exam = await this.prisma.exam.findUnique({
-      where: { id },
+  // Exam for taking — correctIndex omitted; scoped to owner.
+  async getForTaking(userId: string, id: string) {
+    const exam = await this.prisma.exam.findFirst({
+      where: { id, userId },
       select: {
         id: true,
         title: true,
@@ -68,14 +69,18 @@ export class ExamsService {
     return exam;
   }
 
-  async submit(examId: string, answers: AnswerDto[]) {
-    const questions = await this.prisma.question.findMany({
-      where: { examId },
-      select: { id: true, correctIndex: true },
+  async submit(userId: string, examId: string, answers: AnswerDto[]) {
+    const exam = await this.prisma.exam.findFirst({
+      where: { id: examId, userId },
+      select: {
+        questions: { select: { id: true, correctIndex: true } },
+      },
     });
-    if (!questions.length) throw new NotFoundException('Exam not found');
+    if (!exam) throw new NotFoundException('Exam not found');
 
-    const correctById = new Map(questions.map((q) => [q.id, q.correctIndex]));
+    const correctById = new Map(
+      exam.questions.map((q) => [q.id, q.correctIndex]),
+    );
     let score = 0;
     for (const a of answers) {
       if (correctById.get(a.questionId) === a.selectedIndex) score++;
@@ -84,33 +89,39 @@ export class ExamsService {
     const attempt = await this.prisma.attempt.create({
       data: {
         examId,
+        userId,
         answers: answers as any,
         score,
-        total: questions.length,
+        total: exam.questions.length,
       },
     });
     return { attemptId: attempt.id };
   }
 
-  listAttempts(examId: string) {
+  async listAttempts(userId: string, examId: string) {
     return this.prisma.attempt.findMany({
-      where: { examId },
+      where: { examId, userId },
       orderBy: { createdAt: 'desc' },
       select: { id: true, score: true, total: true, createdAt: true },
     });
   }
 
-  // Full result with correct answers — only after submission.
-  async getResult(attemptId: string) {
-    const attempt = await this.prisma.attempt.findUnique({
-      where: { id: attemptId },
+  // Full result with correct answers — only after submission, owner only.
+  async getResult(userId: string, attemptId: string) {
+    const attempt = await this.prisma.attempt.findFirst({
+      where: { id: attemptId, userId },
       include: {
         exam: {
           select: {
             title: true,
             questions: {
               orderBy: { order: 'asc' },
-              select: { id: true, text: true, options: true, correctIndex: true },
+              select: {
+                id: true,
+                text: true,
+                options: true,
+                correctIndex: true,
+              },
             },
           },
         },

@@ -29,51 +29,70 @@ export default function Result() {
     api.getResult(attemptId).then(setData).catch((e) => setError(e.message));
   }, [attemptId]);
 
-  if (error) return <div className="container"><p className="error">{error}</p></div>;
-  if (!data) return <div className="container">Loading…</div>;
+  if (error) return <p className="error">{error}</p>;
+  if (!data) return <p className="muted">Loading result…</p>;
+
+  const pct = Math.round((data.score / data.total) * 100);
+  const color = pct >= 70 ? 'var(--emerald)' : pct >= 40 ? 'var(--amber)' : 'var(--rose)';
 
   return (
-    <div className="container">
-      <Link to="/">← Back</Link>
-      <h1>{data.title} — Result</h1>
-      <div className="card">
-        <strong style={{ fontSize: '1.3rem' }}>
-          Score: {data.score} / {data.total}
-        </strong>
-        <div className="muted">
-          {Math.round((data.score / data.total) * 100)}% ·{' '}
-          {new Date(data.createdAt).toLocaleString()}
+    <>
+      <Link to="/" className="back">← Back to exams</Link>
+      <div className="page-head">
+        <div>
+          <h1>{data.title}</h1>
+          <p>Result · {new Date(data.createdAt).toLocaleString()}</p>
         </div>
       </div>
 
+      <div className="card">
+        <div className="score-hero">
+          <div
+            className="ring"
+            style={{ background: `conic-gradient(${color} ${pct * 3.6}deg, var(--border) 0)` }}
+          >
+            <div style={{ color }}>{pct}%</div>
+          </div>
+          <div>
+            <div style={{ fontSize: '1.4rem', fontWeight: 800 }}>
+              {data.score} / {data.total} correct
+            </div>
+            <p className="muted" style={{ margin: 0 }}>
+              {pct >= 70
+                ? 'Great work! 🎉'
+                : pct >= 40
+                  ? 'Getting there — review the misses below.'
+                  : 'Keep practicing — review the answers below.'}
+            </p>
+          </div>
+        </div>
+      </div>
+
+      <h2 style={{ margin: '24px 0 12px' }}>Answer review</h2>
       {data.questions.map((q, i) => (
         <div className="card" key={q.id}>
-          <strong>
-            {i + 1}. {q.text}{' '}
-            <span className={q.isCorrect ? 'correct' : 'wrong'}>
-              {q.isCorrect ? '✓' : '✗'}
-            </span>
-          </strong>
+          <div className="q-num">
+            QUESTION {i + 1} · {q.isCorrect ? '✓ Correct' : '✗ Incorrect'}
+          </div>
+          <div className="q-text">{q.text}</div>
           {q.options.map((opt, oi) => {
             const isCorrect = oi === q.correctIndex;
             const isSelected = oi === q.selectedIndex;
+            const cls = isCorrect
+              ? 'result-correct'
+              : isSelected
+                ? 'result-wrong'
+                : 'result-plain';
             return (
-              <div
-                className="option"
-                key={oi}
-                style={{
-                  color: isCorrect ? '#15803d' : isSelected ? '#b91c1c' : undefined,
-                  fontWeight: isCorrect || isSelected ? 600 : 400,
-                }}
-              >
+              <div className={`option ${cls}`} key={oi}>
                 {opt}
-                {isCorrect && ' ✓ correct'}
-                {isSelected && !isCorrect && ' ← your answer'}
+                {isCorrect && <span className="tag ok">Correct answer</span>}
+                {isSelected && !isCorrect && <span className="tag bad">Your answer</span>}
               </div>
             );
           })}
         </div>
       ))}
-    </div>
+    </>
   );
 }
