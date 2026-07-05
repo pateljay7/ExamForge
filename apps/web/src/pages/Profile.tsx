@@ -42,12 +42,18 @@ export default function Profile() {
       label: new Date(a.createdAt).toLocaleDateString(),
     }));
 
+  const src = (user?.name || user?.email || '?').trim();
+  const parts = src.split(/[\s@._-]+/).filter(Boolean);
+  const initials =
+    ((parts[0]?.[0] || '') + (parts[1]?.[0] || '')).toUpperCase() || src[0].toUpperCase();
+
   return (
     <>
-      <div className="page-head">
+      <div className="profile-head">
+        <div className="profile-avatar">{initials}</div>
         <div>
           <h1>{user?.name || 'Your profile'}</h1>
-          <p>{user?.email}</p>
+          <p className="muted" style={{ margin: '4px 0 0' }}>{user?.email}</p>
         </div>
       </div>
 

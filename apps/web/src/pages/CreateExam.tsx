@@ -65,30 +65,75 @@ export default function CreateExam() {
     }
   }
 
+  const timingLabel = limitEnabled
+    ? `${timeLimitMinutes} min limit`
+    : timerEnabled
+      ? 'Stopwatch'
+      : 'Untimed';
+  const shuffleLabel =
+    shuffleQuestions && shuffleOptions
+      ? 'Questions + options'
+      : shuffleQuestions
+        ? 'Questions'
+        : shuffleOptions
+          ? 'Options'
+          : 'Off';
+
   return (
     <>
       <Link to="/" className="back">← Back to exams</Link>
       <div className="page-head">
         <div>
-          <h1>New exam</h1>
+          <h1>Create a new exam</h1>
           <p>Add one or more content sections — AI writes questions weighted by each.</p>
         </div>
       </div>
 
-      <div className="card">
-        <form onSubmit={submit}>
-          <label>Exam title</label>
-          <input
-            value={title}
-            onChange={(e) => setTitle(e.target.value)}
-            placeholder="e.g. Biology Midterm"
-            required
-          />
+      <div className="form-layout">
+        <form id="create-form" onSubmit={submit}>
+          <div className="card">
+            <div className="card-title">
+              <span className="step">1</span>
+              <h2>Exam basics</h2>
+            </div>
+            <label>Exam title</label>
+            <input
+              value={title}
+              onChange={(e) => setTitle(e.target.value)}
+              placeholder="e.g. Biology Midterm"
+              required
+            />
 
-          <label>Content sections</label>
-          <p className="hint" style={{ marginTop: 0, marginBottom: 8 }}>
-            Weights decide how many questions come from each section.
-          </p>
+            <label>Tags <span className="muted">(optional, comma-separated)</span></label>
+            <input
+              value={tagsInput}
+              onChange={(e) => setTagsInput(e.target.value)}
+              placeholder="e.g. biology, midterm, semester 1"
+            />
+
+            <label>Difficulty</label>
+            <div className="segment">
+              {DIFFICULTIES.map((d) => (
+                <button
+                  type="button"
+                  key={d}
+                  className={difficulty === d ? 'active' : ''}
+                  onClick={() => setDifficulty(d)}
+                >
+                  {d[0].toUpperCase() + d.slice(1)}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <div className="card">
+            <div className="card-title">
+              <span className="step">2</span>
+              <h2>Content &amp; weighting</h2>
+            </div>
+            <p className="card-sub">
+              Weights decide how many questions come from each section.
+            </p>
           {sections.map((sec, i) => (
             <div className="section-block" key={i}>
               <div className="section-head">
@@ -145,27 +190,13 @@ export default function CreateExam() {
             value={numQuestions}
             onChange={(e) => setNumQuestions(Number(e.target.value))}
           />
-
-          <label>Tags <span className="muted">(optional, comma-separated)</span></label>
-          <input
-            value={tagsInput}
-            onChange={(e) => setTagsInput(e.target.value)}
-            placeholder="e.g. biology, midterm, semester 1"
-          />
-
-          <label>Difficulty</label>
-          <div className="segment">
-            {DIFFICULTIES.map((d) => (
-              <button
-                type="button"
-                key={d}
-                className={difficulty === d ? 'active' : ''}
-                onClick={() => setDifficulty(d)}
-              >
-                {d[0].toUpperCase() + d.slice(1)}
-              </button>
-            ))}
           </div>
+
+          <div className="card">
+            <div className="card-title">
+              <span className="step">3</span>
+              <h2>Options</h2>
+            </div>
 
           <label>Anti-memorization</label>
           <label className="check">
@@ -216,18 +247,50 @@ export default function CreateExam() {
             />
             Show a stopwatch (counts up for reference, no limit)
           </label>
+          </div>
 
           {error && <p className="error">{error}</p>}
-          <button className="btn-lg" disabled={loading} style={{ marginTop: 22 }}>
+        </form>
+
+        <aside className="form-rail">
+          <div className="card">
+            <div className="card-title">
+              <h2>Summary</h2>
+            </div>
+            <div className="summary-row">
+              <span className="k">Questions</span>
+              <span className="v">{numQuestions}</span>
+            </div>
+            <div className="summary-row">
+              <span className="k">Sections</span>
+              <span className="v">{sections.length}</span>
+            </div>
+            <div className="summary-row">
+              <span className="k">Difficulty</span>
+              <span className="v" style={{ textTransform: 'capitalize' }}>{difficulty}</span>
+            </div>
+            <div className="summary-row">
+              <span className="k">Timing</span>
+              <span className="v">{timingLabel}</span>
+            </div>
+            <div className="summary-row">
+              <span className="k">Shuffle</span>
+              <span className="v">{shuffleLabel}</span>
+            </div>
+          </div>
+          <button form="create-form" className="btn-lg btn-block" disabled={loading}>
             {loading ? (
               <>
-                <span className="spinner" /> Generating questions…
+                <span className="spinner" /> Generating…
               </>
             ) : (
-              'Generate & review'
+              '✦ Generate & review'
             )}
           </button>
-        </form>
+          <p className="hint" style={{ textAlign: 'center' }}>
+            You'll review &amp; edit every question before publishing.
+          </p>
+        </aside>
       </div>
     </>
   );

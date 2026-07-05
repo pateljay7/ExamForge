@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { api } from '../api';
+import { useAuth } from '../auth';
 
 type Exam = {
   id: string;
@@ -16,6 +17,7 @@ type Exam = {
 
 export default function Home() {
   const nav = useNavigate();
+  const { user } = useAuth();
   const [exams, setExams] = useState<Exam[] | null>(null);
   const [error, setError] = useState('');
   const [search, setSearch] = useState('');
@@ -44,6 +46,18 @@ export default function Home() {
       ),
     [exams, search, tag, difficulty],
   );
+
+  const overview = useMemo(() => {
+    const list = exams ?? [];
+    return {
+      exams: list.length,
+      published: list.filter((e) => e.status === 'published').length,
+      attempts: list.reduce((s, e) => s + e._count.attempts, 0),
+      shared: list.filter((e) => e.isShared).length,
+    };
+  }, [exams]);
+
+  const firstName = (user?.name || user?.email || '').split(/[\s@]/)[0];
 
   function open(e: Exam) {
     nav(e.status === 'draft' ? `/exam/${e.id}/edit` : `/exam/${e.id}`);
@@ -87,15 +101,36 @@ export default function Home() {
 
   return (
     <>
-      <div className="page-head">
-        <div>
-          <h1>Your exams</h1>
+      <div className="welcome no-print">
+        <div className="welcome-text">
+          <h1>Welcome back{firstName ? `, ${firstName}` : ''} 👋</h1>
           <p>Generate a practice exam from any material, then test yourself.</p>
         </div>
-        <Link to="/create" className="btn btn-lg no-print">+ New Exam</Link>
+        <Link to="/create" className="btn btn-lg btn-on-dark">＋ New Exam</Link>
       </div>
 
       {error && <p className="error">{error}</p>}
+
+      {exams && exams.length > 0 && (
+        <div className="overview no-print">
+          <div className="stat-card">
+            <div className="num">{overview.exams}</div>
+            <div className="lbl">Total exams</div>
+          </div>
+          <div className="stat-card">
+            <div className="num">{overview.published}</div>
+            <div className="lbl">Published</div>
+          </div>
+          <div className="stat-card">
+            <div className="num">{overview.attempts}</div>
+            <div className="lbl">Attempts taken</div>
+          </div>
+          <div className="stat-card">
+            <div className="num">{overview.shared}</div>
+            <div className="lbl">Shared links</div>
+          </div>
+        </div>
+      )}
 
       {exams && exams.length > 0 && (
         <div className="filter-bar">
@@ -148,7 +183,6 @@ export default function Home() {
               <span className={`badge ${e.difficulty}`}>{e.difficulty}</span>
               {e.status === 'draft' && <span className="badge draft">Draft</span>}
               {e.isShared && <span className="badge shared">🔗 Shared</span>}
-              <span>{e._count.questions} Qs</span>
             </div>
             <h2>{e.title}</h2>
             {e.tags.length > 0 && (
@@ -158,12 +192,15 @@ export default function Home() {
                 ))}
               </div>
             )}
-            <div className="exam-meta">
-              {e._count.attempts > 0
-                ? `${e._count.attempts} attempt${e._count.attempts > 1 ? 's' : ''}`
-                : e.status === 'draft'
-                  ? 'Finish editing to publish'
-                  : 'Not attempted yet'}
+            <div className="card-foot">
+              <span className="stat">📝 {e._count.questions} question{e._count.questions === 1 ? '' : 's'}</span>
+              <span className="stat">
+                {e._count.attempts > 0
+                  ? `✓ ${e._count.attempts} attempt${e._count.attempts > 1 ? 's' : ''}`
+                  : e.status === 'draft'
+                    ? '✎ Draft in progress'
+                    : '○ Not attempted'}
+              </span>
             </div>
             <div className="card-actions">
               <button className="btn-ghost" onClick={(ev) => clone(e, ev)}>

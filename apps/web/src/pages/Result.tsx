@@ -55,6 +55,12 @@ export default function Result() {
   const pct = Math.round((data.score / data.total) * 100);
   const color = barColor(pct);
   const timed = data.timeLimitSec || data.timerEnabled;
+  const verdict =
+    pct >= 70
+      ? { cls: 'good', label: '🎉 Great work' }
+      : pct >= 40
+        ? { cls: 'mid', label: '↗ Getting there' }
+        : { cls: 'low', label: '↺ Keep practicing' };
 
   function exportCsv() {
     if (!data) return;
@@ -101,15 +107,14 @@ export default function Result() {
             <div style={{ color }}>{pct}%</div>
           </div>
           <div>
-            <div style={{ fontSize: '1.4rem', fontWeight: 800 }}>
+            <div style={{ marginBottom: 8 }}>
+              <span className={`verdict ${verdict.cls}`}>{verdict.label}</span>
+            </div>
+            <div style={{ fontSize: '1.5rem', fontWeight: 800, fontFamily: "'Plus Jakarta Sans', sans-serif" }}>
               {data.score} / {data.total} correct
             </div>
-            <p className="muted" style={{ margin: 0 }}>
-              {pct >= 70
-                ? 'Great work! 🎉'
-                : pct >= 40
-                  ? 'Getting there — review the misses below.'
-                  : 'Keep practicing — review the answers below.'}
+            <p className="muted" style={{ margin: '2px 0 0' }}>
+              Review your answers below — correct answers are revealed now.
             </p>
           </div>
         </div>
@@ -149,8 +154,11 @@ export default function Result() {
       <h2 style={{ margin: '24px 0 12px' }}>Answer review</h2>
       {data.questions.map((q, i) => (
         <div className="card" key={q.id}>
-          <div className="q-num">
-            QUESTION {i + 1} · {q.isCorrect ? '✓ Correct' : '✗ Incorrect'}
+          <div className="review-head">
+            <div className="q-num">QUESTION {i + 1}</div>
+            <span className={`result-pill ${q.isCorrect ? 'ok' : 'bad'}`}>
+              {q.isCorrect ? '✓ Correct' : '✗ Incorrect'}
+            </span>
           </div>
           <div className="q-text">{q.text}</div>
           {q.options.map((opt, oi) => {

@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../auth';
+import Brand from '../components/Brand';
 
 export default function Signup() {
   const { signup } = useAuth();
@@ -26,13 +27,29 @@ export default function Signup() {
   }
 
   return (
-    <div className="center-screen">
+    <div className="auth-shell">
+      <aside className="auth-brand">
+        <Link to="/login" className="brand">
+          <Brand />
+        </Link>
+        <div className="auth-hero">
+          <h2>Study smarter. Test yourself on your own material.</h2>
+          <p>Create your free account and turn notes, articles, or slides into practice exams in seconds.</p>
+          <ul className="auth-points">
+            <li><span className="tick">✦</span> Unlimited AI-generated exams</li>
+            <li><span className="tick">✓</span> Section weighting &amp; difficulty control</li>
+            <li><span className="tick">↗</span> Progress tracking &amp; shareable links</li>
+          </ul>
+        </div>
+        <div className="auth-foot">© ExamForge — study smarter.</div>
+      </aside>
+
+      <div className="auth-main">
       <div className="card auth-card">
         <Link to="/login" className="brand">
-          <span className="brand-mark">✎</span>
-          ExamForge
+          <Brand />
         </Link>
-        <h1 style={{ textAlign: 'center', margin: '14px 0 2px' }}>Create account</h1>
+        <h1 style={{ textAlign: 'center', margin: '18px 0 2px' }}>Create account</h1>
         <p className="muted" style={{ textAlign: 'center', marginTop: 0 }}>
           Turn your notes into practice exams.
         </p>
@@ -63,6 +80,7 @@ export default function Signup() {
         <p className="auth-switch">
           Already have an account? <Link to="/login">Log in</Link>
         </p>
+      </div>
       </div>
     </div>
   );

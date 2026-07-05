@@ -255,6 +255,41 @@ export default function TakeExam() {
   const low = exam.timeLimitSec ? remaining <= 30 : false;
   const flaggedCount = Object.values(flags).filter(Boolean).length;
 
+  const pctDone = total ? Math.round((answered / total) * 100) : 0;
+
+  const timerEl = exam.timeLimitSec ? (
+    <div className={`timer ${low ? 'low' : ''}`}>
+      <span className="muted">Time left</span>
+      <strong>{fmtTime(Math.max(0, remaining))}</strong>
+    </div>
+  ) : exam.timerEnabled ? (
+    <div className="timer">
+      <span className="muted">Elapsed</span>
+      <strong>{fmtTime(elapsed)}</strong>
+    </div>
+  ) : null;
+
+  const minimap = (
+    <div className="qmap">
+      {order.map((q, i) => (
+        <button
+          key={q.id}
+          className={`${answers[q.id] !== undefined ? 'answered' : ''} ${
+            flags[q.id] ? 'flagged' : ''
+          }`}
+          onClick={() =>
+            document
+              .getElementById(`q-${q.id}`)
+              ?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+          }
+          title={flags[q.id] ? 'Flagged' : undefined}
+        >
+          {i + 1}
+        </button>
+      ))}
+    </div>
+  );
+
   return (
     <>
       <div className="page-head">
@@ -262,88 +297,99 @@ export default function TakeExam() {
           <h1>{exam.title}</h1>
           <p><span className={`badge ${exam.difficulty}`}>{exam.difficulty}</span></p>
         </div>
-        {exam.timeLimitSec ? (
-          <div className={`timer ${low ? 'low' : ''}`}>
-            <span className="muted">Time left</span>
-            <strong>{fmtTime(Math.max(0, remaining))}</strong>
-          </div>
-        ) : exam.timerEnabled ? (
-          <div className="timer">
-            <span className="muted">Elapsed</span>
-            <strong>{fmtTime(elapsed)}</strong>
-          </div>
-        ) : null}
+        {timerEl}
       </div>
 
+      {/* mobile progress (rail is hidden on small screens) */}
       <div className="progress-bar" style={{ marginTop: 8 }}>
-        <div style={{ width: `${total ? (answered / total) * 100 : 0}%` }} />
+        <div style={{ width: `${pctDone}%` }} />
       </div>
-      <p className="muted" style={{ marginBottom: 10 }}>
+      <p className="muted" style={{ marginBottom: 16 }}>
         {answered} of {total} answered
         {flaggedCount > 0 && ` · ${flaggedCount} flagged`}
       </p>
 
-      {/* Question minimap for quick navigation */}
-      <div className="qmap">
-        {order.map((q, i) => (
-          <button
-            key={q.id}
-            className={`${answers[q.id] !== undefined ? 'answered' : ''} ${
-              flags[q.id] ? 'flagged' : ''
-            }`}
-            onClick={() =>
-              document
-                .getElementById(`q-${q.id}`)
-                ?.scrollIntoView({ behavior: 'smooth', block: 'start' })
-            }
-            title={flags[q.id] ? 'Flagged' : undefined}
-          >
-            {i + 1}
-          </button>
-        ))}
-      </div>
+      <div className="exam-grid">
+        <div>
+          {order.map((q, i) => (
+            <div className="card" key={q.id} id={`q-${q.id}`}>
+              <div className="q-head">
+                <div className="q-num">QUESTION {i + 1}</div>
+                <button
+                  className={`flag-btn ${flags[q.id] ? 'flagged' : ''}`}
+                  onClick={() => setFlags((f) => ({ ...f, [q.id]: !f[q.id] }))}
+                >
+                  {flags[q.id] ? '★ Flagged' : '☆ Flag'}
+                </button>
+              </div>
+              <div className="q-text">{q.text}</div>
+              {q.options.map((opt, displayIdx) => {
+                const originalIdx = optOrder[q.id]?.[displayIdx] ?? displayIdx;
+                return (
+                  <label
+                    className={`option ${answers[q.id] === originalIdx ? 'selected' : ''}`}
+                    key={displayIdx}
+                  >
+                    <input
+                      type="radio"
+                      name={q.id}
+                      checked={answers[q.id] === originalIdx}
+                      onChange={() => setAnswers((a) => ({ ...a, [q.id]: originalIdx }))}
+                    />
+                    {opt}
+                  </label>
+                );
+              })}
+            </div>
+          ))}
 
-      {order.map((q, i) => (
-        <div className="card" key={q.id} id={`q-${q.id}`}>
-          <div className="q-head">
-            <div className="q-num">QUESTION {i + 1}</div>
-            <button
-              className={`flag-btn ${flags[q.id] ? 'flagged' : ''}`}
-              onClick={() => setFlags((f) => ({ ...f, [q.id]: !f[q.id] }))}
-            >
-              {flags[q.id] ? '★ Flagged' : '☆ Flag'}
+          {error && <p className="error">{error}</p>}
+
+          {/* bottom action bar — primary on mobile */}
+          <div className="submit-bar mobile-only">
+            <span className="muted">
+              {answered === total ? 'All answered' : `${total - answered} left`}
+            </span>
+            <button onClick={() => submit()} disabled={submitting}>
+              {submitting ? <span className="spinner" /> : 'Submit exam'}
             </button>
           </div>
-          <div className="q-text">{q.text}</div>
-          {q.options.map((opt, displayIdx) => {
-            const originalIdx = optOrder[q.id]?.[displayIdx] ?? displayIdx;
-            return (
-              <label
-                className={`option ${answers[q.id] === originalIdx ? 'selected' : ''}`}
-                key={displayIdx}
-              >
-                <input
-                  type="radio"
-                  name={q.id}
-                  checked={answers[q.id] === originalIdx}
-                  onChange={() => setAnswers((a) => ({ ...a, [q.id]: originalIdx }))}
-                />
-                {opt}
-              </label>
-            );
-          })}
         </div>
-      ))}
 
-      {error && <p className="error">{error}</p>}
+        <aside className="exam-rail">
+          <div className="card">
+            <div className="rail-title">Your progress</div>
+            <div className="rail-count">
+              {answered}<span> / {total} answered</span>
+            </div>
+            <div className="progress-bar" style={{ margin: '10px 0 0' }}>
+              <div style={{ width: `${pctDone}%` }} />
+            </div>
+            {flaggedCount > 0 && (
+              <p className="muted" style={{ margin: '10px 0 0' }}>
+                ★ {flaggedCount} flagged for review
+              </p>
+            )}
+          </div>
 
-      <div className="submit-bar">
-        <span className="muted">
-          {answered === total ? 'All questions answered' : `${total - answered} unanswered`}
-        </span>
-        <button onClick={() => submit()} disabled={submitting}>
-          {submitting ? <span className="spinner" /> : 'Submit exam'}
-        </button>
+          <div className="card">
+            <div className="rail-title">Question map</div>
+            {minimap}
+          </div>
+
+          <button
+            className="btn-lg btn-block"
+            onClick={() => submit()}
+            disabled={submitting}
+          >
+            {submitting ? <span className="spinner" /> : 'Submit exam'}
+          </button>
+          {answered < total && (
+            <p className="hint" style={{ textAlign: 'center' }}>
+              {total - answered} question{total - answered === 1 ? '' : 's'} still unanswered.
+            </p>
+          )}
+        </aside>
       </div>
     </>
   );

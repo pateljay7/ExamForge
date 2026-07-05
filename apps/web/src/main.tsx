@@ -10,6 +10,7 @@ import { AuthProvider, useAuth } from './auth';
 import Layout from './components/Layout';
 import Login from './pages/Login';
 import Signup from './pages/Signup';
+import Landing from './pages/Landing';
 import Home from './pages/Home';
 import CreateExam from './pages/CreateExam';
 import EditExam from './pages/EditExam';
@@ -29,10 +30,22 @@ function Protected({ children }: { children: ReactNode }) {
   return <Layout>{children}</Layout>;
 }
 
+// Root: logged-in users get their dashboard, visitors see the marketing landing page.
+function Root() {
+  const { user } = useAuth();
+  return user ? (
+    <Layout>
+      <Home />
+    </Layout>
+  ) : (
+    <Landing />
+  );
+}
+
 const router = createBrowserRouter([
   { path: '/login', element: <Login /> },
   { path: '/signup', element: <Signup /> },
-  { path: '/', element: <Protected><Home /></Protected> },
+  { path: '/', element: <Root /> },
   { path: '/create', element: <Protected><CreateExam /></Protected> },
   { path: '/exam/:id/edit', element: <Protected><EditExam /></Protected> },
   { path: '/exam/:id', element: <Protected><TakeExam /></Protected> },

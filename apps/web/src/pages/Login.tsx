@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../auth';
+import Brand from '../components/Brand';
 
 export default function Login() {
   const { login } = useAuth();
@@ -25,13 +26,29 @@ export default function Login() {
   }
 
   return (
-    <div className="center-screen">
+    <div className="auth-shell">
+      <aside className="auth-brand">
+        <Link to="/login" className="brand">
+          <Brand />
+        </Link>
+        <div className="auth-hero">
+          <h2>Turn any material into a mastery-building exam.</h2>
+          <p>Paste your notes, generate a tailored MCQ exam, and track your progress over time.</p>
+          <ul className="auth-points">
+            <li><span className="tick">✦</span> AI-written questions from your own content</li>
+            <li><span className="tick">✓</span> Timed practice with resume &amp; auto-submit</li>
+            <li><span className="tick">↗</span> Score trends, streaks &amp; detailed reviews</li>
+          </ul>
+        </div>
+        <div className="auth-foot">© ExamForge — study smarter.</div>
+      </aside>
+
+      <div className="auth-main">
       <div className="card auth-card">
         <Link to="/login" className="brand">
-          <span className="brand-mark">✎</span>
-          ExamForge
+          <Brand />
         </Link>
-        <h1 style={{ textAlign: 'center', margin: '14px 0 2px' }}>Welcome back</h1>
+        <h1 style={{ textAlign: 'center', margin: '18px 0 2px' }}>Welcome back</h1>
         <p className="muted" style={{ textAlign: 'center', marginTop: 0 }}>
           Log in to your exams and results.
         </p>
@@ -59,6 +76,7 @@ export default function Login() {
         <p className="auth-switch">
           New here? <Link to="/signup">Create an account</Link>
         </p>
+      </div>
       </div>
     </div>
   );
