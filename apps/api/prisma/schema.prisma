@@ -1,0 +1,38 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Exam {
+  id         String     @id @default(cuid())
+  title      String
+  content    String
+  difficulty String // easy | medium | hard
+  createdAt  DateTime   @default(now())
+  questions  Question[]
+  attempts   Attempt[]
+}
+
+model Question {
+  id           String @id @default(cuid())
+  examId       String
+  exam         Exam   @relation(fields: [examId], references: [id], onDelete: Cascade)
+  order        Int
+  text         String
+  options      Json // string[4]
+  correctIndex Int // 0-3 — hidden from client until result
+}
+
+model Attempt {
+  id        String   @id @default(cuid())
+  examId    String
+  exam      Exam     @relation(fields: [examId], references: [id], onDelete: Cascade)
+  answers   Json // [{ questionId, selectedIndex }]
+  score     Int
+  total     Int
+  createdAt DateTime @default(now())
+}
