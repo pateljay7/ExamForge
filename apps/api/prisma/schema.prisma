@@ -18,17 +18,23 @@ model User {
 }
 
 model Exam {
-  id           String     @id @default(cuid())
-  userId       String
-  user         User       @relation(fields: [userId], references: [id], onDelete: Cascade)
-  title        String
-  sections     Json // [{ content: string, weight: number }]
-  difficulty   String // easy | medium | hard
-  timeLimitSec Int? // preset countdown limit; null = no limit
-  timerEnabled Boolean    @default(false) // reference stopwatch (only when no limit)
-  createdAt    DateTime   @default(now())
-  questions    Question[]
-  attempts     Attempt[]
+  id               String     @id @default(cuid())
+  userId           String
+  user             User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  title            String
+  sections         Json // [{ title?: string, content: string, weight: number }]
+  difficulty       String // easy | medium | hard
+  status           String     @default("draft") // draft | published
+  tags             String[]   @default([])
+  timeLimitSec     Int? // preset countdown limit; null = no limit
+  timerEnabled     Boolean    @default(false) // reference stopwatch (only when no limit)
+  shuffleQuestions Boolean    @default(false)
+  shuffleOptions   Boolean    @default(false)
+  isShared         Boolean    @default(false)
+  shareCode        String?    @unique
+  createdAt        DateTime   @default(now())
+  questions        Question[]
+  attempts         Attempt[]
 }
 
 model Question {
@@ -36,6 +42,7 @@ model Question {
   examId       String
   exam         Exam   @relation(fields: [examId], references: [id], onDelete: Cascade)
   order        Int
+  sectionIndex Int    @default(0) // which content section this came from
   text         String
   options      Json // string[4]
   correctIndex Int // 0-3 — hidden from client until result

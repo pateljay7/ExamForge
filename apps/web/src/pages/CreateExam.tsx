@@ -4,17 +4,22 @@ import { api } from '../api';
 
 const DIFFICULTIES = ['easy', 'medium', 'hard'];
 
-type Section = { content: string; weight: number };
+type Section = { title: string; content: string; weight: number };
 
 export default function CreateExam() {
   const nav = useNavigate();
   const [title, setTitle] = useState('');
-  const [sections, setSections] = useState<Section[]>([{ content: '', weight: 1 }]);
+  const [sections, setSections] = useState<Section[]>([
+    { title: '', content: '', weight: 1 },
+  ]);
   const [numQuestions, setNumQuestions] = useState(5);
   const [difficulty, setDifficulty] = useState('medium');
+  const [tagsInput, setTagsInput] = useState('');
   const [limitEnabled, setLimitEnabled] = useState(false);
   const [timeLimitMinutes, setTimeLimitMinutes] = useState(15);
   const [timerEnabled, setTimerEnabled] = useState(false);
+  const [shuffleQuestions, setShuffleQuestions] = useState(true);
+  const [shuffleOptions, setShuffleOptions] = useState(true);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
@@ -23,7 +28,8 @@ export default function CreateExam() {
   function updateSection(i: number, patch: Partial<Section>) {
     setSections((s) => s.map((sec, idx) => (idx === i ? { ...sec, ...patch } : sec)));
   }
-  const addSection = () => setSections((s) => [...s, { content: '', weight: 1 }]);
+  const addSection = () =>
+    setSections((s) => [...s, { title: '', content: '', weight: 1 }]);
   const removeSection = (i: number) =>
     setSections((s) => s.filter((_, idx) => idx !== i));
 
@@ -32,15 +38,27 @@ export default function CreateExam() {
     setError('');
     setLoading(true);
     try {
+      const tags = tagsInput
+        .split(',')
+        .map((t) => t.trim())
+        .filter(Boolean);
       const exam = await api.createExam({
         title,
-        sections,
+        sections: sections.map((s) => ({
+          title: s.title.trim() || undefined,
+          content: s.content,
+          weight: s.weight,
+        })),
         numQuestions,
         difficulty,
+        tags,
+        shuffleQuestions,
+        shuffleOptions,
         timeLimitMinutes: limitEnabled ? timeLimitMinutes : undefined,
         timerEnabled: limitEnabled ? false : timerEnabled,
       });
-      nav(`/exam/${exam.id}`);
+      // New exams start as drafts — go review & publish.
+      nav(`/exam/${exam.id}/edit`);
     } catch (err: any) {
       setError(err.message);
       setLoading(false);
@@ -88,12 +106,17 @@ export default function CreateExam() {
                   </button>
                 )}
               </div>
+              <input
+                value={sec.title}
+                onChange={(e) => updateSection(i, { title: e.target.value })}
+                placeholder="Section title (optional) — e.g. Cell Biology"
+              />
               <textarea
                 value={sec.content}
                 onChange={(e) => updateSection(i, { content: e.target.value })}
                 placeholder="Paste the material for this section…"
                 required
-                style={{ minHeight: 120 }}
+                style={{ minHeight: 120, marginTop: 8 }}
               />
               <div className="weight-row">
                 <span className="muted">Weight</span>
@@ -123,6 +146,13 @@ export default function CreateExam() {
             onChange={(e) => setNumQuestions(Number(e.target.value))}
           />
 
+          <label>Tags <span className="muted">(optional, comma-separated)</span></label>
+          <input
+            value={tagsInput}
+            onChange={(e) => setTagsInput(e.target.value)}
+            placeholder="e.g. biology, midterm, semester 1"
+          />
+
           <label>Difficulty</label>
           <div className="segment">
             {DIFFICULTIES.map((d) => (
@@ -136,6 +166,24 @@ export default function CreateExam() {
               </button>
             ))}
           </div>
+
+          <label>Anti-memorization</label>
+          <label className="check">
+            <input
+              type="checkbox"
+              checked={shuffleQuestions}
+              onChange={(e) => setShuffleQuestions(e.target.checked)}
+            />
+            Shuffle question order on each attempt
+          </label>
+          <label className="check">
+            <input
+              type="checkbox"
+              checked={shuffleOptions}
+              onChange={(e) => setShuffleOptions(e.target.checked)}
+            />
+            Shuffle answer options on each attempt
+          </label>
 
           <label>Timing</label>
           <label className="check">
@@ -176,7 +224,7 @@ export default function CreateExam() {
                 <span className="spinner" /> Generating questions…
               </>
             ) : (
-              'Generate exam'
+              'Generate & review'
             )}
           </button>
         </form>

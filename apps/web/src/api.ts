@@ -37,13 +37,37 @@ export const api = {
   listExams: () => req('/exams'),
   createExam: (data: {
     title: string;
-    sections: { content: string; weight: number }[];
+    sections: { title?: string; content: string; weight: number }[];
     numQuestions: number;
     difficulty: string;
     timeLimitMinutes?: number;
     timerEnabled?: boolean;
+    shuffleQuestions?: boolean;
+    shuffleOptions?: boolean;
+    tags?: string[];
   }) => req('/exams', { method: 'POST', body: JSON.stringify(data) }),
   getExam: (id: string) => req(`/exams/${id}`),
+  getExamFull: (id: string) => req(`/exams/${id}/full`),
+  updateQuestion: (
+    examId: string,
+    qid: string,
+    data: { text?: string; options?: string[]; correctIndex?: number },
+  ) =>
+    req(`/exams/${examId}/questions/${qid}`, {
+      method: 'PATCH',
+      body: JSON.stringify(data),
+    }),
+  regenerateQuestion: (examId: string, qid: string) =>
+    req(`/exams/${examId}/questions/${qid}/regenerate`, { method: 'POST' }),
+  publish: (examId: string) => req(`/exams/${examId}/publish`, { method: 'POST' }),
+  clone: (examId: string) => req(`/exams/${examId}/clone`, { method: 'POST' }),
+  share: (examId: string, enabled: boolean) =>
+    req(`/exams/${examId}/share`, {
+      method: 'POST',
+      body: JSON.stringify({ enabled }),
+    }),
+  resolveShared: (code: string) => req(`/shared/${code}`),
+
   listAttempts: (examId: string) => req(`/exams/${examId}/attempts`),
   submit: (
     examId: string,
@@ -55,4 +79,5 @@ export const api = {
       body: JSON.stringify({ answers, timeTakenSec }),
     }),
   getResult: (attemptId: string) => req(`/attempts/${attemptId}`),
+  getStats: () => req('/me/stats'),
 };

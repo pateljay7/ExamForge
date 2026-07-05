@@ -8,43 +8,148 @@ type Exam = {
   id: string;
   title: string;
   difficulty: string;
+  status: string;
+  isOwner?: boolean;
   timeLimitSec: number | null;
   timerEnabled: boolean;
+  shuffleQuestions: boolean;
+  shuffleOptions: boolean;
   questions: Question[];
 };
 type Attempt = { id: string; score: number; total: number; createdAt: string };
 
+// Fisher–Yates over an index array.
+function shuffledIndices(n: number): number[] {
+  const a = Array.from({ length: n }, (_, i) => i);
+  for (let i = n - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [a[i], a[j]] = [a[j], a[i]];
+  }
+  return a;
+}
+
+type Progress = {
+  answers: Record<string, number>; // qid -> ORIGINAL option index
+  flags: Record<string, boolean>;
+  elapsed: number;
+  qOrder: string[]; // question ids in display order
+  optOrder: Record<string, number[]>; // qid -> original option indices, display order
+};
+
 export default function TakeExam() {
   const { id } = useParams();
   const nav = useNavigate();
+  const storageKey = `exam_progress_${id}`;
+
   const [exam, setExam] = useState<Exam | null>(null);
   const [attempts, setAttempts] = useState<Attempt[]>([]);
   const [started, setStarted] = useState(false);
   const [answers, setAnswers] = useState<Record<string, number>>({});
+  const [flags, setFlags] = useState<Record<string, boolean>>({});
   const [elapsed, setElapsed] = useState(0);
+  const [order, setOrder] = useState<Question[]>([]); // display order, options already arranged
+  const [optOrder, setOptOrder] = useState<Record<string, number[]>>({});
+  const [hasSaved, setHasSaved] = useState(false);
   const [error, setError] = useState('');
   const [submitting, setSubmitting] = useState(false);
-  const startRef = useRef<number | null>(null);
   const submittedRef = useRef(false);
 
   useEffect(() => {
     if (!id) return;
-    api.getExam(id).then(setExam).catch((e) => setError(e.message));
+    api
+      .getExam(id)
+      .then((e: Exam) => {
+        // Owner opened their own unpublished draft — send them to the editor.
+        if (e.status !== 'published') {
+          if (e.isOwner) nav(`/exam/${e.id}/edit`, { replace: true });
+          else setError('This exam is not available.');
+          return;
+        }
+        setExam(e);
+        setHasSaved(!!localStorage.getItem(storageKey));
+      })
+      .catch((e) => setError(e.message));
     api.listAttempts(id).then(setAttempts).catch(() => {});
   }, [id]);
 
   const timed = !!(exam && (exam.timeLimitSec || exam.timerEnabled));
 
-  // Clock only runs once the exam has been started.
+  // Clock ticks only while the exam is active (pauses when not started).
   useEffect(() => {
     if (!started || !timed) return;
-    startRef.current = Date.now();
-    const t = setInterval(
-      () => setElapsed(Math.floor((Date.now() - startRef.current!) / 1000)),
-      1000,
-    );
+    const t = setInterval(() => setElapsed((e) => e + 1), 1000);
     return () => clearInterval(t);
   }, [started, timed]);
+
+  // Persist progress so an interrupted attempt can be resumed.
+  useEffect(() => {
+    if (!started || !exam) return;
+    const p: Progress = {
+      answers,
+      flags,
+      elapsed,
+      qOrder: order.map((q) => q.id),
+      optOrder,
+    };
+    localStorage.setItem(storageKey, JSON.stringify(p));
+  }, [started, answers, flags, elapsed, order, optOrder, exam]);
+
+  // Build the display order (either fresh or restored from a saved attempt).
+  function arrange(e: Exam, saved?: Progress) {
+    const byId = new Map(e.questions.map((q) => [q.id, q]));
+
+    const qIds = saved
+      ? saved.qOrder.filter((qid) => byId.has(qid))
+      : e.shuffleQuestions
+        ? shuffledIndices(e.questions.length).map((i) => e.questions[i].id)
+        : e.questions.map((q) => q.id);
+
+    const opt: Record<string, number[]> = {};
+    const displayQs: Question[] = qIds.map((qid) => {
+      const q = byId.get(qid)!;
+      const perm =
+        saved?.optOrder[qid] ??
+        (e.shuffleOptions
+          ? shuffledIndices(q.options.length)
+          : q.options.map((_, i) => i));
+      opt[qid] = perm;
+      return { ...q, options: perm.map((oi) => q.options[oi]) };
+    });
+
+    setOrder(displayQs);
+    setOptOrder(opt);
+  }
+
+  function start() {
+    if (!exam) return;
+    arrange(exam);
+    setStarted(true);
+  }
+
+  function resume() {
+    if (!exam) return;
+    const raw = localStorage.getItem(storageKey);
+    if (!raw) return start();
+    try {
+      const saved: Progress = JSON.parse(raw);
+      arrange(exam, saved);
+      setAnswers(saved.answers || {});
+      setFlags(saved.flags || {});
+      setElapsed(saved.elapsed || 0);
+      setStarted(true);
+    } catch {
+      start();
+    }
+  }
+
+  function startOver() {
+    localStorage.removeItem(storageKey);
+    setAnswers({});
+    setFlags({});
+    setElapsed(0);
+    setHasSaved(false);
+    start();
+  }
 
   async function submit() {
     if (!exam || submittedRef.current) return;
@@ -52,11 +157,13 @@ export default function TakeExam() {
     setSubmitting(true);
     setError('');
     try {
+      // `answers` already holds ORIGINAL option indices, so the server scores correctly.
       const payload = Object.entries(answers).map(([questionId, selectedIndex]) => ({
         questionId,
         selectedIndex,
       }));
       const { attemptId } = await api.submit(exam.id, payload, timed ? elapsed : 0);
+      localStorage.removeItem(storageKey);
       nav(`/result/${attemptId}`);
     } catch (e: any) {
       submittedRef.current = false;
@@ -65,7 +172,7 @@ export default function TakeExam() {
     }
   }
 
-  // Auto-submit when the preset limit is reached.
+  // Auto-submit when a preset limit runs out.
   const overLimit = !!(started && exam?.timeLimitSec && elapsed >= exam.timeLimitSec);
   useEffect(() => {
     if (overLimit) submit();
@@ -95,20 +202,33 @@ export default function TakeExam() {
 
         <div className="card start-card">
           <div className="emoji" style={{ fontSize: '2.4rem' }}>📝</div>
-          <h2>Ready to begin?</h2>
+          <h2>{hasSaved ? 'Resume your attempt?' : 'Ready to begin?'}</h2>
           <div className="start-meta">
             <span>{exam.questions.length} questions</span>
             <span>·</span>
             <span>{timingLabel}</span>
+            {(exam.shuffleQuestions || exam.shuffleOptions) && (
+              <>
+                <span>·</span>
+                <span>🔀 Shuffled</span>
+              </>
+            )}
           </div>
           {exam.timeLimitSec && (
             <p className="muted">
               The timer starts when you press Start and submits automatically when it runs out.
             </p>
           )}
-          <button className="btn-lg" onClick={() => setStarted(true)} style={{ marginTop: 8 }}>
-            Start Exam
-          </button>
+          {hasSaved ? (
+            <div className="card-actions" style={{ justifyContent: 'center' }}>
+              <button className="btn-lg" onClick={resume}>Resume exam</button>
+              <button className="btn-ghost" onClick={startOver}>Start over</button>
+            </div>
+          ) : (
+            <button className="btn-lg" onClick={start} style={{ marginTop: 8 }}>
+              Start Exam
+            </button>
+          )}
         </div>
 
         {attempts.length > 0 && (
@@ -130,9 +250,10 @@ export default function TakeExam() {
 
   // ---------- Exam in progress ----------
   const answered = Object.keys(answers).length;
-  const total = exam.questions.length;
+  const total = order.length;
   const remaining = exam.timeLimitSec ? exam.timeLimitSec - elapsed : 0;
   const low = exam.timeLimitSec ? remaining <= 30 : false;
+  const flaggedCount = Object.values(flags).filter(Boolean).length;
 
   return (
     <>
@@ -155,30 +276,62 @@ export default function TakeExam() {
       </div>
 
       <div className="progress-bar" style={{ marginTop: 8 }}>
-        <div style={{ width: `${(answered / total) * 100}%` }} />
+        <div style={{ width: `${total ? (answered / total) * 100 : 0}%` }} />
       </div>
-      <p className="muted" style={{ marginBottom: 16 }}>
+      <p className="muted" style={{ marginBottom: 10 }}>
         {answered} of {total} answered
+        {flaggedCount > 0 && ` · ${flaggedCount} flagged`}
       </p>
 
-      {exam.questions.map((q, i) => (
-        <div className="card" key={q.id}>
-          <div className="q-num">QUESTION {i + 1}</div>
-          <div className="q-text">{q.text}</div>
-          {q.options.map((opt, oi) => (
-            <label
-              className={`option ${answers[q.id] === oi ? 'selected' : ''}`}
-              key={oi}
+      {/* Question minimap for quick navigation */}
+      <div className="qmap">
+        {order.map((q, i) => (
+          <button
+            key={q.id}
+            className={`${answers[q.id] !== undefined ? 'answered' : ''} ${
+              flags[q.id] ? 'flagged' : ''
+            }`}
+            onClick={() =>
+              document
+                .getElementById(`q-${q.id}`)
+                ?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+            }
+            title={flags[q.id] ? 'Flagged' : undefined}
+          >
+            {i + 1}
+          </button>
+        ))}
+      </div>
+
+      {order.map((q, i) => (
+        <div className="card" key={q.id} id={`q-${q.id}`}>
+          <div className="q-head">
+            <div className="q-num">QUESTION {i + 1}</div>
+            <button
+              className={`flag-btn ${flags[q.id] ? 'flagged' : ''}`}
+              onClick={() => setFlags((f) => ({ ...f, [q.id]: !f[q.id] }))}
             >
-              <input
-                type="radio"
-                name={q.id}
-                checked={answers[q.id] === oi}
-                onChange={() => setAnswers((a) => ({ ...a, [q.id]: oi }))}
-              />
-              {opt}
-            </label>
-          ))}
+              {flags[q.id] ? '★ Flagged' : '☆ Flag'}
+            </button>
+          </div>
+          <div className="q-text">{q.text}</div>
+          {q.options.map((opt, displayIdx) => {
+            const originalIdx = optOrder[q.id]?.[displayIdx] ?? displayIdx;
+            return (
+              <label
+                className={`option ${answers[q.id] === originalIdx ? 'selected' : ''}`}
+                key={displayIdx}
+              >
+                <input
+                  type="radio"
+                  name={q.id}
+                  checked={answers[q.id] === originalIdx}
+                  onChange={() => setAnswers((a) => ({ ...a, [q.id]: originalIdx }))}
+                />
+                {opt}
+              </label>
+            );
+          })}
         </div>
       ))}
 

@@ -21,21 +21,20 @@ export class AiService {
     sections: { content: string; weight: number }[],
     count: number,
     difficulty: string,
-  ): Promise<GeneratedQuestion[]> {
+  ): Promise<(GeneratedQuestion & { sectionIndex: number })[]> {
     const counts = this.distribute(
       sections.map((s) => s.weight),
       count,
     );
-    const all: GeneratedQuestion[] = [];
+    const all: (GeneratedQuestion & { sectionIndex: number })[] = [];
     for (let i = 0; i < sections.length; i++) {
       if (counts[i] > 0) {
-        all.push(
-          ...(await this.generateQuestions(
-            sections[i].content,
-            counts[i],
-            difficulty,
-          )),
+        const qs = await this.generateQuestions(
+          sections[i].content,
+          counts[i],
+          difficulty,
         );
+        all.push(...qs.map((q) => ({ ...q, sectionIndex: i })));
       }
     }
     return all;
@@ -60,12 +59,18 @@ export class AiService {
     content: string,
     count: number,
     difficulty: string,
+    avoid: string[] = [],
   ): Promise<GeneratedQuestion[]> {
+    const avoidBlock = avoid.length
+      ? `\nDo NOT repeat or closely paraphrase any of these existing questions:\n${avoid
+          .map((t) => `- ${t}`)
+          .join('\n')}\n`
+      : '';
     const prompt = `From the study content below, write ${count} multiple-choice questions at ${difficulty} difficulty.
 Rules:
 - Exactly 4 options per question.
 - Exactly one correct option.
-- Base every question strictly on the provided content.
+- Base every question strictly on the provided content.${avoidBlock}
 Return ONLY a JSON array, no prose, no markdown fences, shaped like:
 [{"text":"...","options":["a","b","c","d"],"correctIndex":0}]
 

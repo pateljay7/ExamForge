@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { api } from '../api';
 
@@ -6,6 +6,10 @@ type Exam = {
   id: string;
   title: string;
   difficulty: string;
+  status: string;
+  tags: string[];
+  isShared: boolean;
+  shareCode: string | null;
   createdAt: string;
   _count: { questions: number; attempts: number };
 };
@@ -14,10 +18,72 @@ export default function Home() {
   const nav = useNavigate();
   const [exams, setExams] = useState<Exam[] | null>(null);
   const [error, setError] = useState('');
+  const [search, setSearch] = useState('');
+  const [tag, setTag] = useState('');
+  const [difficulty, setDifficulty] = useState('');
+  const [copied, setCopied] = useState('');
 
-  useEffect(() => {
+  const load = () =>
     api.listExams().then(setExams).catch((e) => setError(e.message));
+  useEffect(() => {
+    load();
   }, []);
+
+  const allTags = useMemo(
+    () => Array.from(new Set((exams ?? []).flatMap((e) => e.tags))).sort(),
+    [exams],
+  );
+
+  const filtered = useMemo(
+    () =>
+      (exams ?? []).filter(
+        (e) =>
+          (!search || e.title.toLowerCase().includes(search.toLowerCase())) &&
+          (!tag || e.tags.includes(tag)) &&
+          (!difficulty || e.difficulty === difficulty),
+      ),
+    [exams, search, tag, difficulty],
+  );
+
+  function open(e: Exam) {
+    nav(e.status === 'draft' ? `/exam/${e.id}/edit` : `/exam/${e.id}`);
+  }
+
+  async function clone(e: Exam, ev: React.MouseEvent) {
+    ev.stopPropagation();
+    try {
+      const copy = await api.clone(e.id);
+      nav(`/exam/${copy.id}/edit`);
+    } catch (err: any) {
+      setError(err.message);
+    }
+  }
+
+  async function toggleShare(e: Exam, ev: React.MouseEvent) {
+    ev.stopPropagation();
+    try {
+      const res = await api.share(e.id, !e.isShared);
+      if (res.isShared && res.shareCode) {
+        await navigator.clipboard
+          .writeText(`${location.origin}/shared/${res.shareCode}`)
+          .catch(() => {});
+        setCopied(e.id);
+        setTimeout(() => setCopied(''), 2500);
+      }
+      load();
+    } catch (err: any) {
+      setError(err.message);
+    }
+  }
+
+  async function copyLink(e: Exam, ev: React.MouseEvent) {
+    ev.stopPropagation();
+    await navigator.clipboard
+      .writeText(`${location.origin}/shared/${e.shareCode}`)
+      .catch(() => {});
+    setCopied(e.id);
+    setTimeout(() => setCopied(''), 2500);
+  }
 
   return (
     <>
@@ -26,10 +92,36 @@ export default function Home() {
           <h1>Your exams</h1>
           <p>Generate a practice exam from any material, then test yourself.</p>
         </div>
-        <Link to="/create" className="btn btn-lg">+ New Exam</Link>
+        <Link to="/create" className="btn btn-lg no-print">+ New Exam</Link>
       </div>
 
       {error && <p className="error">{error}</p>}
+
+      {exams && exams.length > 0 && (
+        <div className="filter-bar">
+          <input
+            type="search"
+            placeholder="Search exams…"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+          />
+          <select value={difficulty} onChange={(e) => setDifficulty(e.target.value)}>
+            <option value="">All difficulties</option>
+            <option value="easy">Easy</option>
+            <option value="medium">Medium</option>
+            <option value="hard">Hard</option>
+          </select>
+          {allTags.map((t) => (
+            <button
+              key={t}
+              className={`chip ${tag === t ? 'active' : ''}`}
+              onClick={() => setTag(tag === t ? '' : t)}
+            >
+              #{t}
+            </button>
+          ))}
+        </div>
+      )}
 
       {exams && exams.length === 0 && (
         <div className="card empty">
@@ -42,28 +134,56 @@ export default function Home() {
         </div>
       )}
 
-      {exams && exams.length > 0 && (
-        <div className="grid">
-          {exams.map((e) => (
-            <div
-              className="card exam-card"
-              key={e.id}
-              onClick={() => nav(`/exam/${e.id}`)}
-            >
-              <div className="exam-meta">
-                <span className={`badge ${e.difficulty}`}>{e.difficulty}</span>
-                <span>{e._count.questions} questions</span>
-              </div>
-              <h2>{e.title}</h2>
-              <div className="exam-meta" style={{ marginTop: 'auto' }}>
-                {e._count.attempts > 0
-                  ? `${e._count.attempts} attempt${e._count.attempts > 1 ? 's' : ''}`
-                  : 'Not attempted yet'}
-              </div>
-            </div>
-          ))}
+      {exams && exams.length > 0 && filtered.length === 0 && (
+        <div className="card empty">
+          <h2>No matches</h2>
+          <p className="muted">Try a different search or clear the filters.</p>
         </div>
       )}
+
+      <div className="grid">
+        {filtered.map((e) => (
+          <div className="card exam-card" key={e.id} onClick={() => open(e)}>
+            <div className="exam-meta">
+              <span className={`badge ${e.difficulty}`}>{e.difficulty}</span>
+              {e.status === 'draft' && <span className="badge draft">Draft</span>}
+              {e.isShared && <span className="badge shared">🔗 Shared</span>}
+              <span>{e._count.questions} Qs</span>
+            </div>
+            <h2>{e.title}</h2>
+            {e.tags.length > 0 && (
+              <div className="exam-meta">
+                {e.tags.map((t) => (
+                  <span className="tag-chip" key={t}>#{t}</span>
+                ))}
+              </div>
+            )}
+            <div className="exam-meta">
+              {e._count.attempts > 0
+                ? `${e._count.attempts} attempt${e._count.attempts > 1 ? 's' : ''}`
+                : e.status === 'draft'
+                  ? 'Finish editing to publish'
+                  : 'Not attempted yet'}
+            </div>
+            <div className="card-actions">
+              <button className="btn-ghost" onClick={(ev) => clone(e, ev)}>
+                ⧉ Clone
+              </button>
+              {e.status === 'published' && (
+                <button className="btn-ghost" onClick={(ev) => toggleShare(e, ev)}>
+                  {e.isShared ? 'Unshare' : '🔗 Share'}
+                </button>
+              )}
+              {e.isShared && e.shareCode && (
+                <button className="btn-ghost" onClick={(ev) => copyLink(e, ev)}>
+                  Copy link
+                </button>
+              )}
+              {copied === e.id && <span className="success-note">Link copied ✓</span>}
+            </div>
+          </div>
+        ))}
+      </div>
     </>
   );
 }

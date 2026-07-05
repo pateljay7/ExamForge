@@ -1,4 +1,5 @@
 import {
+  ArrayMaxSize,
   ArrayMinSize,
   IsArray,
   IsBoolean,
@@ -14,6 +15,10 @@ import {
 import { Type } from 'class-transformer';
 
 export class SectionDto {
+  @IsOptional()
+  @IsString()
+  title?: string;
+
   @IsString()
   @MinLength(20, { message: 'each section needs at least 20 characters' })
   content: string;
@@ -54,6 +59,44 @@ export class CreateExamDto {
   @IsOptional()
   @IsBoolean()
   timerEnabled?: boolean;
+
+  @IsOptional()
+  @IsBoolean()
+  shuffleQuestions?: boolean;
+
+  @IsOptional()
+  @IsBoolean()
+  shuffleOptions?: boolean;
+
+  @IsOptional()
+  @IsArray()
+  @IsString({ each: true })
+  tags?: string[];
+}
+
+export class UpdateQuestionDto {
+  @IsOptional()
+  @IsString()
+  @MinLength(1)
+  text?: string;
+
+  @IsOptional()
+  @IsArray()
+  @ArrayMinSize(4)
+  @ArrayMaxSize(4)
+  @IsString({ each: true })
+  options?: string[];
+
+  @IsOptional()
+  @IsInt()
+  @Min(0)
+  @Max(3)
+  correctIndex?: number;
+}
+
+export class ShareDto {
+  @IsBoolean()
+  enabled: boolean;
 }
 
 export class AnswerDto {

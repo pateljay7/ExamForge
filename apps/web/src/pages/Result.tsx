@@ -11,6 +11,7 @@ type Q = {
   selectedIndex: number | null;
   isCorrect: boolean;
 };
+type SectionScore = { title: string; weight: number; correct: number; total: number };
 type ResultData = {
   id: string;
   title: string;
@@ -21,6 +22,7 @@ type ResultData = {
   timeLimitSec: number | null;
   timerEnabled: boolean;
   createdAt: string;
+  sectionBreakdown: SectionScore[];
   questions: Q[];
 };
 
@@ -31,6 +33,10 @@ function Meta({ label, value }: { label: string; value: string }) {
       <span className="meta-value">{value}</span>
     </div>
   );
+}
+
+function barColor(pct: number) {
+  return pct >= 70 ? 'var(--emerald)' : pct >= 40 ? 'var(--amber)' : 'var(--rose)';
 }
 
 export default function Result() {
@@ -47,16 +53,42 @@ export default function Result() {
   if (!data) return <p className="muted">Loading result…</p>;
 
   const pct = Math.round((data.score / data.total) * 100);
-  const color = pct >= 70 ? 'var(--emerald)' : pct >= 40 ? 'var(--amber)' : 'var(--rose)';
+  const color = barColor(pct);
   const timed = data.timeLimitSec || data.timerEnabled;
+
+  function exportCsv() {
+    if (!data) return;
+    const esc = (v: string) => `"${String(v).replace(/"/g, '""')}"`;
+    const rows = [
+      ['#', 'Question', 'Your answer', 'Correct answer', 'Result'],
+      ...data.questions.map((q, i) => [
+        String(i + 1),
+        q.text,
+        q.selectedIndex !== null ? q.options[q.selectedIndex] : '(no answer)',
+        q.options[q.correctIndex],
+        q.isCorrect ? 'Correct' : 'Incorrect',
+      ]),
+    ];
+    const csv = rows.map((r) => r.map(esc).join(',')).join('\n');
+    const url = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8' }));
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `${data.title.replace(/[^\w-]+/g, '_')}_result.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+  }
 
   return (
     <>
-      <Link to="/" className="back">← Back to exams</Link>
+      <Link to="/" className="back no-print">← Back to exams</Link>
       <div className="page-head">
         <div>
           <h1>{data.title}</h1>
           <p>Result · {new Date(data.createdAt).toLocaleString()}</p>
+        </div>
+        <div className="card-actions no-print" style={{ margin: 0 }}>
+          <button className="btn-ghost" onClick={exportCsv}>⭳ CSV</button>
+          <button className="btn-ghost" onClick={() => window.print()}>⎙ PDF</button>
         </div>
       </div>
 
@@ -94,6 +126,26 @@ export default function Result() {
         </div>
       </div>
 
+      {data.sectionBreakdown.length > 1 && (
+        <div className="card">
+          <h2 style={{ marginTop: 0, marginBottom: 8 }}>Section breakdown</h2>
+          {data.sectionBreakdown.map((s, i) => {
+            const spct = s.total ? Math.round((s.correct / s.total) * 100) : 0;
+            return (
+              <div className="break-row" key={i}>
+                <span className="name" title={s.title}>{s.title}</span>
+                <div className="break-bar">
+                  <div style={{ width: `${spct}%`, background: barColor(spct) }} />
+                </div>
+                <span className="val">
+                  {s.correct}/{s.total}
+                </span>
+              </div>
+            );
+          })}
+        </div>
+      )}
+
       <h2 style={{ margin: '24px 0 12px' }}>Answer review</h2>
       {data.questions.map((q, i) => (
         <div className="card" key={q.id}>
@@ -117,6 +169,9 @@ export default function Result() {
               </div>
             );
           })}
+          {q.selectedIndex === null && (
+            <p className="muted" style={{ margin: '8px 0 0' }}>You didn't answer this one.</p>
+          )}
         </div>
       ))}
     </>

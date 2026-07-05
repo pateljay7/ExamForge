@@ -4,6 +4,7 @@ import {
   createBrowserRouter,
   Navigate,
   RouterProvider,
+  useLocation,
 } from 'react-router-dom';
 import { AuthProvider, useAuth } from './auth';
 import Layout from './components/Layout';
@@ -11,13 +12,20 @@ import Login from './pages/Login';
 import Signup from './pages/Signup';
 import Home from './pages/Home';
 import CreateExam from './pages/CreateExam';
+import EditExam from './pages/EditExam';
 import TakeExam from './pages/TakeExam';
 import Result from './pages/Result';
+import Profile from './pages/Profile';
+import SharedEntry from './pages/SharedEntry';
 import './index.css';
 
 function Protected({ children }: { children: ReactNode }) {
   const { user } = useAuth();
-  if (!user) return <Navigate to="/login" replace />;
+  const location = useLocation();
+  if (!user) {
+    // Remember where the user was heading (e.g. a /shared/:code link).
+    return <Navigate to="/login" replace state={{ from: location.pathname }} />;
+  }
   return <Layout>{children}</Layout>;
 }
 
@@ -26,8 +34,11 @@ const router = createBrowserRouter([
   { path: '/signup', element: <Signup /> },
   { path: '/', element: <Protected><Home /></Protected> },
   { path: '/create', element: <Protected><CreateExam /></Protected> },
+  { path: '/exam/:id/edit', element: <Protected><EditExam /></Protected> },
   { path: '/exam/:id', element: <Protected><TakeExam /></Protected> },
   { path: '/result/:attemptId', element: <Protected><Result /></Protected> },
+  { path: '/profile', element: <Protected><Profile /></Protected> },
+  { path: '/shared/:code', element: <Protected><SharedEntry /></Protected> },
 ]);
 
 ReactDOM.createRoot(document.getElementById('root')!).render(
