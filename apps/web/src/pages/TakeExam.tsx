@@ -19,6 +19,7 @@ export default function TakeExam() {
   const nav = useNavigate();
   const [exam, setExam] = useState<Exam | null>(null);
   const [attempts, setAttempts] = useState<Attempt[]>([]);
+  const [started, setStarted] = useState(false);
   const [answers, setAnswers] = useState<Record<string, number>>({});
   const [elapsed, setElapsed] = useState(0);
   const [error, setError] = useState('');
@@ -34,16 +35,16 @@ export default function TakeExam() {
 
   const timed = !!(exam && (exam.timeLimitSec || exam.timerEnabled));
 
-  // Tick the clock once the exam (with timing) is loaded.
+  // Clock only runs once the exam has been started.
   useEffect(() => {
-    if (!timed) return;
+    if (!started || !timed) return;
     startRef.current = Date.now();
     const t = setInterval(
       () => setElapsed(Math.floor((Date.now() - startRef.current!) / 1000)),
       1000,
     );
     return () => clearInterval(t);
-  }, [timed]);
+  }, [started, timed]);
 
   async function submit() {
     if (!exam || submittedRef.current) return;
@@ -65,7 +66,7 @@ export default function TakeExam() {
   }
 
   // Auto-submit when the preset limit is reached.
-  const overLimit = !!(exam?.timeLimitSec && elapsed >= exam.timeLimitSec);
+  const overLimit = !!(started && exam?.timeLimitSec && elapsed >= exam.timeLimitSec);
   useEffect(() => {
     if (overLimit) submit();
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -74,6 +75,60 @@ export default function TakeExam() {
   if (error && !exam) return <p className="error">{error}</p>;
   if (!exam) return <p className="muted">Loading exam…</p>;
 
+  const timingLabel = exam.timeLimitSec
+    ? `Time limit: ${fmtTime(exam.timeLimitSec)} (auto-submits)`
+    : exam.timerEnabled
+      ? 'Stopwatch enabled · no limit'
+      : 'No time limit';
+
+  // ---------- Start screen ----------
+  if (!started) {
+    return (
+      <>
+        <Link to="/" className="back">← Back to exams</Link>
+        <div className="page-head">
+          <div>
+            <h1>{exam.title}</h1>
+            <p><span className={`badge ${exam.difficulty}`}>{exam.difficulty}</span></p>
+          </div>
+        </div>
+
+        <div className="card start-card">
+          <div className="emoji" style={{ fontSize: '2.4rem' }}>📝</div>
+          <h2>Ready to begin?</h2>
+          <div className="start-meta">
+            <span>{exam.questions.length} questions</span>
+            <span>·</span>
+            <span>{timingLabel}</span>
+          </div>
+          {exam.timeLimitSec && (
+            <p className="muted">
+              The timer starts when you press Start and submits automatically when it runs out.
+            </p>
+          )}
+          <button className="btn-lg" onClick={() => setStarted(true)} style={{ marginTop: 8 }}>
+            Start Exam
+          </button>
+        </div>
+
+        {attempts.length > 0 && (
+          <div className="card">
+            <h2 style={{ marginBottom: 6 }}>Past attempts</h2>
+            {attempts.map((a) => (
+              <div className="attempt-row" key={a.id}>
+                <span className="muted">{new Date(a.createdAt).toLocaleString()}</span>
+                <Link to={`/result/${a.id}`} className="pill-score">
+                  {a.score}/{a.total}
+                </Link>
+              </div>
+            ))}
+          </div>
+        )}
+      </>
+    );
+  }
+
+  // ---------- Exam in progress ----------
   const answered = Object.keys(answers).length;
   const total = exam.questions.length;
   const remaining = exam.timeLimitSec ? exam.timeLimitSec - elapsed : 0;
@@ -81,7 +136,6 @@ export default function TakeExam() {
 
   return (
     <>
-      <Link to="/" className="back">← Back to exams</Link>
       <div className="page-head">
         <div>
           <h1>{exam.title}</h1>
@@ -99,20 +153,6 @@ export default function TakeExam() {
           </div>
         ) : null}
       </div>
-
-      {attempts.length > 0 && (
-        <div className="card">
-          <h2 style={{ marginBottom: 6 }}>Past attempts</h2>
-          {attempts.map((a) => (
-            <div className="attempt-row" key={a.id}>
-              <span className="muted">{new Date(a.createdAt).toLocaleString()}</span>
-              <Link to={`/result/${a.id}`} className="pill-score">
-                {a.score}/{a.total}
-              </Link>
-            </div>
-          ))}
-        </div>
-      )}
 
       <div className="progress-bar" style={{ marginTop: 8 }}>
         <div style={{ width: `${(answered / total) * 100}%` }} />

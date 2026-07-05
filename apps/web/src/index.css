@@ -537,6 +537,24 @@ textarea {
   accent-color: var(--primary);
 }
 
+/* ---------- start screen ---------- */
+.start-card {
+  text-align: center;
+  padding: 32px 20px;
+}
+.start-card h2 {
+  margin: 6px 0;
+}
+.start-meta {
+  display: flex;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  color: var(--muted);
+  font-size: 0.92rem;
+  margin-bottom: 8px;
+}
+
 /* ---------- result metadata ---------- */
 .meta-grid {
   display: grid;
