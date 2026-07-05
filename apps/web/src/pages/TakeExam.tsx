@@ -1,9 +1,17 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { api } from '../api';
+import { fmtTime } from '../format';
 
 type Question = { id: string; text: string; options: string[] };
-type Exam = { id: string; title: string; difficulty: string; questions: Question[] };
+type Exam = {
+  id: string;
+  title: string;
+  difficulty: string;
+  timeLimitSec: number | null;
+  timerEnabled: boolean;
+  questions: Question[];
+};
 type Attempt = { id: string; score: number; total: number; createdAt: string };
 
 export default function TakeExam() {
@@ -12,8 +20,11 @@ export default function TakeExam() {
   const [exam, setExam] = useState<Exam | null>(null);
   const [attempts, setAttempts] = useState<Attempt[]>([]);
   const [answers, setAnswers] = useState<Record<string, number>>({});
+  const [elapsed, setElapsed] = useState(0);
   const [error, setError] = useState('');
   const [submitting, setSubmitting] = useState(false);
+  const startRef = useRef<number | null>(null);
+  const submittedRef = useRef(false);
 
   useEffect(() => {
     if (!id) return;
@@ -21,8 +32,22 @@ export default function TakeExam() {
     api.listAttempts(id).then(setAttempts).catch(() => {});
   }, [id]);
 
+  const timed = !!(exam && (exam.timeLimitSec || exam.timerEnabled));
+
+  // Tick the clock once the exam (with timing) is loaded.
+  useEffect(() => {
+    if (!timed) return;
+    startRef.current = Date.now();
+    const t = setInterval(
+      () => setElapsed(Math.floor((Date.now() - startRef.current!) / 1000)),
+      1000,
+    );
+    return () => clearInterval(t);
+  }, [timed]);
+
   async function submit() {
-    if (!exam) return;
+    if (!exam || submittedRef.current) return;
+    submittedRef.current = true;
     setSubmitting(true);
     setError('');
     try {
@@ -30,20 +55,29 @@ export default function TakeExam() {
         questionId,
         selectedIndex,
       }));
-      const { attemptId } = await api.submit(exam.id, payload);
+      const { attemptId } = await api.submit(exam.id, payload, timed ? elapsed : 0);
       nav(`/result/${attemptId}`);
     } catch (e: any) {
-      setError(e.message);
+      submittedRef.current = false;
       setSubmitting(false);
+      setError(e.message);
     }
   }
+
+  // Auto-submit when the preset limit is reached.
+  const overLimit = !!(exam?.timeLimitSec && elapsed >= exam.timeLimitSec);
+  useEffect(() => {
+    if (overLimit) submit();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [overLimit]);
 
   if (error && !exam) return <p className="error">{error}</p>;
   if (!exam) return <p className="muted">Loading exam…</p>;
 
   const answered = Object.keys(answers).length;
   const total = exam.questions.length;
-  const allAnswered = answered === total;
+  const remaining = exam.timeLimitSec ? exam.timeLimitSec - elapsed : 0;
+  const low = exam.timeLimitSec ? remaining <= 30 : false;
 
   return (
     <>
@@ -51,10 +85,19 @@ export default function TakeExam() {
       <div className="page-head">
         <div>
           <h1>{exam.title}</h1>
-          <p>
-            <span className={`badge ${exam.difficulty}`}>{exam.difficulty}</span>
-          </p>
+          <p><span className={`badge ${exam.difficulty}`}>{exam.difficulty}</span></p>
         </div>
+        {exam.timeLimitSec ? (
+          <div className={`timer ${low ? 'low' : ''}`}>
+            <span className="muted">Time left</span>
+            <strong>{fmtTime(Math.max(0, remaining))}</strong>
+          </div>
+        ) : exam.timerEnabled ? (
+          <div className="timer">
+            <span className="muted">Elapsed</span>
+            <strong>{fmtTime(elapsed)}</strong>
+          </div>
+        ) : null}
       </div>
 
       {attempts.length > 0 && (
@@ -103,9 +146,9 @@ export default function TakeExam() {
 
       <div className="submit-bar">
         <span className="muted">
-          {allAnswered ? 'All questions answered' : `${total - answered} left`}
+          {answered === total ? 'All questions answered' : `${total - answered} unanswered`}
         </span>
-        <button onClick={submit} disabled={submitting || !allAnswered}>
+        <button onClick={() => submit()} disabled={submitting}>
           {submitting ? <span className="spinner" /> : 'Submit exam'}
         </button>
       </div>

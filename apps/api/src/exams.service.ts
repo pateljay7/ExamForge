@@ -11,18 +11,26 @@ export class ExamsService {
   ) {}
 
   async create(userId: string, dto: CreateExamDto) {
-    const generated = await this.ai.generateQuestions(
-      dto.content,
+    const generated = await this.ai.generateForSections(
+      dto.sections,
       dto.numQuestions,
       dto.difficulty,
     );
+
+    const timeLimitSec = dto.timeLimitMinutes
+      ? dto.timeLimitMinutes * 60
+      : null;
+    // Stopwatch only applies when there's no preset limit.
+    const timerEnabled = timeLimitSec ? false : !!dto.timerEnabled;
 
     const exam = await this.prisma.exam.create({
       data: {
         userId,
         title: dto.title,
-        content: dto.content,
+        sections: dto.sections as any,
         difficulty: dto.difficulty,
+        timeLimitSec,
+        timerEnabled,
         questions: {
           create: generated.map((q, i) => ({
             order: i,
@@ -59,6 +67,8 @@ export class ExamsService {
         id: true,
         title: true,
         difficulty: true,
+        timeLimitSec: true,
+        timerEnabled: true,
         questions: {
           orderBy: { order: 'asc' },
           select: { id: true, text: true, options: true },
@@ -69,7 +79,12 @@ export class ExamsService {
     return exam;
   }
 
-  async submit(userId: string, examId: string, answers: AnswerDto[]) {
+  async submit(
+    userId: string,
+    examId: string,
+    answers: AnswerDto[],
+    timeTakenSec: number,
+  ) {
     const exam = await this.prisma.exam.findFirst({
       where: { id: examId, userId },
       select: {
@@ -93,6 +108,7 @@ export class ExamsService {
         answers: answers as any,
         score,
         total: exam.questions.length,
+        timeTakenSec: Math.max(0, Math.round(timeTakenSec) || 0),
       },
     });
     return { attemptId: attempt.id };
@@ -114,6 +130,9 @@ export class ExamsService {
         exam: {
           select: {
             title: true,
+            difficulty: true,
+            timeLimitSec: true,
+            timerEnabled: true,
             questions: {
               orderBy: { order: 'asc' },
               select: {
@@ -136,8 +155,12 @@ export class ExamsService {
     return {
       id: attempt.id,
       title: attempt.exam.title,
+      difficulty: attempt.exam.difficulty,
       score: attempt.score,
       total: attempt.total,
+      timeTakenSec: attempt.timeTakenSec,
+      timeLimitSec: attempt.exam.timeLimitSec,
+      timerEnabled: attempt.exam.timerEnabled,
       createdAt: attempt.createdAt,
       questions: attempt.exam.questions.map((q) => {
         const selectedIndex = selectedById.has(q.id)

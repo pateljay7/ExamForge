@@ -18,15 +18,17 @@ model User {
 }
 
 model Exam {
-  id         String     @id @default(cuid())
-  userId     String
-  user       User       @relation(fields: [userId], references: [id], onDelete: Cascade)
-  title      String
-  content    String
-  difficulty String // easy | medium | hard
-  createdAt  DateTime   @default(now())
-  questions  Question[]
-  attempts   Attempt[]
+  id           String     @id @default(cuid())
+  userId       String
+  user         User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  title        String
+  sections     Json // [{ content: string, weight: number }]
+  difficulty   String // easy | medium | hard
+  timeLimitSec Int? // preset countdown limit; null = no limit
+  timerEnabled Boolean    @default(false) // reference stopwatch (only when no limit)
+  createdAt    DateTime   @default(now())
+  questions    Question[]
+  attempts     Attempt[]
 }
 
 model Question {
@@ -40,13 +42,14 @@ model Question {
 }
 
 model Attempt {
-  id        String   @id @default(cuid())
-  examId    String
-  exam      Exam     @relation(fields: [examId], references: [id], onDelete: Cascade)
-  userId    String
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  answers   Json // [{ questionId, selectedIndex }]
-  score     Int
-  total     Int
-  createdAt DateTime @default(now())
+  id           String   @id @default(cuid())
+  examId       String
+  exam         Exam     @relation(fields: [examId], references: [id], onDelete: Cascade)
+  userId       String
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  answers      Json // [{ questionId, selectedIndex }]
+  score        Int
+  total        Int
+  timeTakenSec Int      @default(0)
+  createdAt    DateTime @default(now())
 }

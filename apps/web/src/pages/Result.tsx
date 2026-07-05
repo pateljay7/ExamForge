@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { api } from '../api';
+import { fmtTime } from '../format';
 
 type Q = {
   id: string;
@@ -13,11 +14,24 @@ type Q = {
 type ResultData = {
   id: string;
   title: string;
+  difficulty: string;
   score: number;
   total: number;
+  timeTakenSec: number;
+  timeLimitSec: number | null;
+  timerEnabled: boolean;
   createdAt: string;
   questions: Q[];
 };
+
+function Meta({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="meta-item">
+      <span className="meta-label">{label}</span>
+      <span className="meta-value">{value}</span>
+    </div>
+  );
+}
 
 export default function Result() {
   const { attemptId } = useParams();
@@ -34,6 +48,7 @@ export default function Result() {
 
   const pct = Math.round((data.score / data.total) * 100);
   const color = pct >= 70 ? 'var(--emerald)' : pct >= 40 ? 'var(--amber)' : 'var(--rose)';
+  const timed = data.timeLimitSec || data.timerEnabled;
 
   return (
     <>
@@ -65,6 +80,17 @@ export default function Result() {
                   : 'Keep practicing — review the answers below.'}
             </p>
           </div>
+        </div>
+
+        <div className="meta-grid">
+          <Meta label="Marks" value={`${data.score} / ${data.total}`} />
+          <Meta label="Score" value={`${pct}%`} />
+          <Meta label="Difficulty" value={data.difficulty} />
+          {timed && <Meta label="Time taken" value={fmtTime(data.timeTakenSec)} />}
+          {data.timeLimitSec && (
+            <Meta label="Time limit" value={fmtTime(data.timeLimitSec)} />
+          )}
+          <Meta label="Submitted" value={new Date(data.createdAt).toLocaleString()} />
         </div>
       </div>
 

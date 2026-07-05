@@ -30,7 +30,7 @@ export class ExamsController {
     @Param('id') id: string,
     @Body() dto: SubmitAttemptDto,
   ) {
-    return this.exams.submit(userId, id, dto.answers);
+    return this.exams.submit(userId, id, dto.answers, dto.timeTakenSec ?? 0);
   }
 
   @Get('exams/:id/attempts')

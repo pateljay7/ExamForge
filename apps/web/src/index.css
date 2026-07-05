@@ -471,6 +471,97 @@ textarea {
   color: var(--primary-dark);
 }
 
+/* ---------- timer ---------- */
+.timer {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  padding: 8px 16px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--surface);
+  min-width: 108px;
+}
+.timer strong {
+  font-size: 1.35rem;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.02em;
+}
+.timer.low {
+  border-color: #fecdd3;
+  background: var(--rose-soft);
+}
+.timer.low strong {
+  color: var(--rose);
+}
+
+/* ---------- section editor ---------- */
+.section-block {
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 14px;
+  margin-bottom: 12px;
+  background: #fbfcfe;
+}
+.section-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 8px;
+}
+.section-share {
+  color: var(--muted);
+  font-size: 0.82rem;
+}
+.section-head .btn-sm {
+  margin-left: auto;
+  padding: 5px 12px;
+  font-size: 0.82rem;
+}
+.weight-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 10px;
+}
+.check {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-weight: 500;
+  margin: 10px 0 0;
+  cursor: pointer;
+}
+.check input {
+  width: auto;
+  accent-color: var(--primary);
+}
+
+/* ---------- result metadata ---------- */
+.meta-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+  gap: 12px;
+  margin-top: 20px;
+  padding-top: 18px;
+  border-top: 1px solid var(--border);
+}
+.meta-item {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.meta-label {
+  color: var(--muted);
+  font-size: 0.78rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+.meta-value {
+  font-weight: 700;
+  text-transform: capitalize;
+}
+
 @media (max-width: 520px) {
   .page-head {
     flex-direction: column;

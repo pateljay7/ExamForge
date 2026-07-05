@@ -16,6 +16,46 @@ export class AiService {
     }
   }
 
+  // Split `count` questions across weighted sections, then generate each set.
+  async generateForSections(
+    sections: { content: string; weight: number }[],
+    count: number,
+    difficulty: string,
+  ): Promise<GeneratedQuestion[]> {
+    const counts = this.distribute(
+      sections.map((s) => s.weight),
+      count,
+    );
+    const all: GeneratedQuestion[] = [];
+    for (let i = 0; i < sections.length; i++) {
+      if (counts[i] > 0) {
+        all.push(
+          ...(await this.generateQuestions(
+            sections[i].content,
+            counts[i],
+            difficulty,
+          )),
+        );
+      }
+    }
+    return all;
+  }
+
+  // Proportional allocation of `count` across weights, remainder to heaviest.
+  private distribute(weights: number[], count: number): number[] {
+    const total = weights.reduce((a, b) => a + b, 0) || 1;
+    const counts = weights.map((w) => Math.floor((count * w) / total));
+    let remaining = count - counts.reduce((a, b) => a + b, 0);
+    const byWeightDesc = weights
+      .map((w, i) => ({ i, w }))
+      .sort((a, b) => b.w - a.w);
+    for (let k = 0; remaining > 0; k = (k + 1) % byWeightDesc.length) {
+      counts[byWeightDesc[k].i]++;
+      remaining--;
+    }
+    return counts;
+  }
+
   async generateQuestions(
     content: string,
     count: number,

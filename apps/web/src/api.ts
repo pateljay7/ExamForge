@@ -37,19 +37,22 @@ export const api = {
   listExams: () => req('/exams'),
   createExam: (data: {
     title: string;
-    content: string;
+    sections: { content: string; weight: number }[];
     numQuestions: number;
     difficulty: string;
+    timeLimitMinutes?: number;
+    timerEnabled?: boolean;
   }) => req('/exams', { method: 'POST', body: JSON.stringify(data) }),
   getExam: (id: string) => req(`/exams/${id}`),
   listAttempts: (examId: string) => req(`/exams/${examId}/attempts`),
   submit: (
     examId: string,
     answers: { questionId: string; selectedIndex: number }[],
+    timeTakenSec: number,
   ) =>
     req(`/exams/${examId}/attempts`, {
       method: 'POST',
-      body: JSON.stringify({ answers }),
+      body: JSON.stringify({ answers, timeTakenSec }),
     }),
   getResult: (attemptId: string) => req(`/attempts/${attemptId}`),
 };
