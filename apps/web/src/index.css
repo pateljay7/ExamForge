@@ -2342,3 +2342,150 @@ html[data-theme='dark'] .btn-on-dark {
     font-size: 1.5rem;
   }
 }
+
+/* ================= settings: provider picker ================= */
+.provider-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 12px;
+  margin-top: 14px;
+}
+.provider-opt {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  padding: 16px 18px;
+  border-radius: var(--radius-sm);
+  border: 1.5px solid var(--border);
+  background: var(--surface);
+  color: var(--text);
+  font-weight: 600;
+  cursor: pointer;
+  transition: border-color 0.14s, background 0.14s;
+}
+.provider-opt:hover:not(:disabled) {
+  filter: none;
+  border-color: var(--primary-border);
+  background: var(--surface-2);
+}
+.provider-opt.active {
+  border-color: var(--primary);
+  background: var(--primary-soft);
+}
+.provider-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--border-strong);
+  flex-shrink: 0;
+}
+.provider-opt.active .provider-dot {
+  background: var(--grad-gold);
+}
+.provider-name {
+  flex: 1;
+  text-align: left;
+}
+.provider-check {
+  color: var(--primary-dark);
+  font-weight: 800;
+}
+
+/* ================= roles: permission matrix ================= */
+.perm-table {
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+  margin-top: 6px;
+}
+.perm-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px 14px;
+  border-top: 1px solid var(--border);
+  flex-wrap: wrap;
+}
+.perm-row:first-child {
+  border-top: 0;
+}
+.perm-head {
+  background: var(--surface-2);
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+.perm-mod {
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.perm-all {
+  background: transparent;
+  border: 1px solid var(--border);
+  color: var(--muted);
+  padding: 2px 9px;
+  border-radius: 999px;
+  font-size: 0.72rem;
+  font-weight: 600;
+}
+.perm-actions {
+  display: flex;
+  gap: 14px;
+  flex-wrap: wrap;
+}
+.perm-check {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 0;
+  font-weight: 500;
+  font-size: 0.88rem;
+  text-transform: capitalize;
+  cursor: pointer;
+}
+.perm-check input {
+  width: auto;
+  accent-color: var(--primary);
+}
+.perm-summary {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px;
+  margin-top: 12px;
+}
+
+/* ================= users table ================= */
+.data-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.92rem;
+}
+.data-table th,
+.data-table td {
+  text-align: left;
+  padding: 13px 16px;
+  border-top: 1px solid var(--border);
+}
+.data-table th {
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--muted);
+  border-top: 0;
+}
+.data-table tbody tr:hover {
+  background: var(--surface-2);
+}
+.data-table select {
+  width: auto;
+  padding: 6px 10px;
+}
+.u-name {
+  font-weight: 600;
+}

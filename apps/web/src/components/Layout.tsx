@@ -71,6 +71,35 @@ const I = {
       />
     </svg>
   ),
+  settings: (
+    <svg viewBox="0 0 24 24" fill="none" aria-hidden>
+      <circle cx="12" cy="12" r="3.2" stroke="currentColor" strokeWidth="1.7" />
+      <path
+        d="M12 2.5v2.2M12 19.3v2.2M21.5 12h-2.2M4.7 12H2.5M18.7 5.3l-1.6 1.6M6.9 17.1l-1.6 1.6M18.7 18.7l-1.6-1.6M6.9 6.9 5.3 5.3"
+        stroke="currentColor"
+        strokeWidth="1.7"
+        strokeLinecap="round"
+      />
+    </svg>
+  ),
+  roles: (
+    <svg viewBox="0 0 24 24" fill="none" aria-hidden>
+      <path
+        d="M12 3 4.5 6v5c0 4.4 3 8.3 7.5 10 4.5-1.7 7.5-5.6 7.5-10V6L12 3Z"
+        stroke="currentColor"
+        strokeWidth="1.7"
+        strokeLinejoin="round"
+      />
+      <path d="m9 12 2 2 4-4" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  ),
+  users: (
+    <svg viewBox="0 0 24 24" fill="none" aria-hidden>
+      <circle cx="9" cy="8" r="3.2" stroke="currentColor" strokeWidth="1.7" />
+      <path d="M3.5 20a5.5 5.5 0 0 1 11 0" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" />
+      <path d="M16 5.2a3.2 3.2 0 0 1 0 6M17.5 20a5.5 5.5 0 0 0-3-4.9" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" />
+    </svg>
+  ),
 };
 
 function initials(name?: string, email?: string) {
@@ -80,7 +109,7 @@ function initials(name?: string, email?: string) {
 }
 
 export default function Layout({ children }: { children: ReactNode }) {
-  const { user, logout } = useAuth();
+  const { user, can, logout } = useAuth();
   const nav = useNavigate();
   const [open, setOpen] = useState(false);
   const [theme, setTheme] = useState(currentTheme);
@@ -93,10 +122,29 @@ export default function Layout({ children }: { children: ReactNode }) {
   }
 
   const links = [
-    { to: '/', ico: I.dashboard, label: 'Dashboard' },
-    { to: '/create', ico: I.create, label: 'New Exam' },
-    { to: '/profile', ico: I.profile, label: 'Profile' },
-  ];
+    { to: '/', ico: I.dashboard, label: 'Dashboard', show: true },
+    { to: '/create', ico: I.create, label: 'New Exam', show: can('exams:create') },
+    { to: '/profile', ico: I.profile, label: 'Profile', show: true },
+    { to: '/settings', ico: I.settings, label: 'Settings', show: true },
+  ].filter((l) => l.show);
+
+  const adminLinks = [
+    { to: '/roles', ico: I.roles, label: 'Roles', show: can('roles:view') },
+    { to: '/users', ico: I.users, label: 'Users', show: can('users:view') },
+  ].filter((l) => l.show);
+
+  const renderLink = (l: { to: string; ico: ReactNode; label: string }) => (
+    <NavLink
+      key={l.to}
+      to={l.to}
+      end={l.to === '/'}
+      className={({ isActive }) => `side-link ${isActive ? 'active' : ''}`}
+      onClick={() => setOpen(false)}
+    >
+      <span className="ico">{l.ico}</span>
+      {l.label}
+    </NavLink>
+  );
 
   return (
     <div className="shell">
@@ -106,18 +154,13 @@ export default function Layout({ children }: { children: ReactNode }) {
           <Brand />
         </Link>
         <div className="side-section">Menu</div>
-        {links.map((l) => (
-          <NavLink
-            key={l.to}
-            to={l.to}
-            end={l.to === '/'}
-            className={({ isActive }) => `side-link ${isActive ? 'active' : ''}`}
-            onClick={() => setOpen(false)}
-          >
-            <span className="ico">{l.ico}</span>
-            {l.label}
-          </NavLink>
-        ))}
+        {links.map(renderLink)}
+        {adminLinks.length > 0 && (
+          <>
+            <div className="side-section">Administration</div>
+            {adminLinks.map(renderLink)}
+          </>
+        )}
         <div className="side-spacer" />
         <div className="side-footer">
           <button className="side-btn" onClick={toggleTheme}>

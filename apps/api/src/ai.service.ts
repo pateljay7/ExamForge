@@ -1,5 +1,7 @@
 import { Injectable, InternalServerErrorException } from '@nestjs/common';
-import { query } from '@anthropic-ai/claude-agent-sdk';
+import { LlmProvider } from './llm/llm.types';
+import { ClaudeProvider } from './llm/claude.provider';
+import { GeminiProvider } from './llm/gemini.provider';
 
 export interface GeneratedQuestion {
   text: string;
@@ -7,13 +9,20 @@ export interface GeneratedQuestion {
   correctIndex: number; // 0-3
 }
 
+const SYSTEM =
+  'You are an exam author. You only ever output a raw JSON array of MCQ objects.';
+
 @Injectable()
 export class AiService {
-  constructor() {
-    // Accept the CLAUDE_OAUTH_TOKEN name the spec used; the SDK reads CLAUDE_CODE_OAUTH_TOKEN.
-    if (process.env.CLAUDE_OAUTH_TOKEN && !process.env.CLAUDE_CODE_OAUTH_TOKEN) {
-      process.env.CLAUDE_CODE_OAUTH_TOKEN = process.env.CLAUDE_OAUTH_TOKEN;
-    }
+  private readonly providers: Record<string, LlmProvider>;
+
+  constructor(claude: ClaudeProvider, gemini: GeminiProvider) {
+    // Adapter registry — add a provider here, nothing else changes.
+    this.providers = { claude, gemini };
+  }
+
+  private provider(name?: string): LlmProvider {
+    return this.providers[name ?? 'claude'] ?? this.providers.claude;
   }
 
   // Split `count` questions across weighted sections, then generate each set.
@@ -21,6 +30,7 @@ export class AiService {
     sections: { content: string; weight: number }[],
     count: number,
     difficulty: string,
+    providerName?: string,
   ): Promise<(GeneratedQuestion & { sectionIndex: number })[]> {
     const counts = this.distribute(
       sections.map((s) => s.weight),
@@ -33,6 +43,8 @@ export class AiService {
           sections[i].content,
           counts[i],
           difficulty,
+          [],
+          providerName,
         );
         all.push(...qs.map((q) => ({ ...q, sectionIndex: i })));
       }
@@ -60,6 +72,7 @@ export class AiService {
     count: number,
     difficulty: string,
     avoid: string[] = [],
+    providerName?: string,
   ): Promise<GeneratedQuestion[]> {
     const avoidBlock = avoid.length
       ? `\nDo NOT repeat or closely paraphrase any of these existing questions:\n${avoid
@@ -77,20 +90,7 @@ Return ONLY a JSON array, no prose, no markdown fences, shaped like:
 CONTENT:
 ${content}`;
 
-    let raw = '';
-    for await (const message of query({
-      prompt,
-      options: {
-        maxTurns: 1,
-        allowedTools: [], // no file/tool access — one-shot generation
-        systemPrompt:
-          'You are an exam author. You only ever output a raw JSON array of MCQ objects.',
-      },
-    })) {
-      if (message.type === 'result' && message.subtype === 'success') {
-        raw = message.result;
-      }
-    }
+    const raw = await this.provider(providerName).generate(SYSTEM, prompt);
 
     const questions = this.parse(raw);
     if (!questions.length) {

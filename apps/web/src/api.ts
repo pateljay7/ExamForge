@@ -33,6 +33,7 @@ export const api = {
     req('/auth/signup', { method: 'POST', body: JSON.stringify(data) }),
   login: (data: { email: string; password: string }) =>
     req('/auth/login', { method: 'POST', body: JSON.stringify(data) }),
+  me: () => req('/auth/me'),
 
   listExams: () => req('/exams'),
   createExam: (data: {
@@ -80,4 +81,25 @@ export const api = {
     }),
   getResult: (attemptId: string) => req(`/attempts/${attemptId}`),
   getStats: () => req('/me/stats'),
+  deleteExam: (id: string) => req(`/exams/${id}`, { method: 'DELETE' }),
+
+  // settings (self)
+  getSettings: () => req('/me/settings'),
+  updateSettings: (llmProvider: string) =>
+    req('/me/settings', { method: 'PATCH', body: JSON.stringify({ llmProvider }) }),
+
+  // roles (admin)
+  permissionCatalog: () => req('/roles/catalog'),
+  listRoles: () => req('/roles'),
+  createRole: (data: { name: string; permissions: any }) =>
+    req('/roles', { method: 'POST', body: JSON.stringify(data) }),
+  updateRole: (id: string, data: { name?: string; permissions?: any }) =>
+    req(`/roles/${id}`, { method: 'PATCH', body: JSON.stringify(data) }),
+  deleteRole: (id: string) => req(`/roles/${id}`, { method: 'DELETE' }),
+
+  // users (admin)
+  listUsers: () => req('/users'),
+  assignRole: (userId: string, roleId: string) =>
+    req(`/users/${userId}/role`, { method: 'PATCH', body: JSON.stringify({ roleId }) }),
+  deleteUser: (userId: string) => req(`/users/${userId}`, { method: 'DELETE' }),
 };

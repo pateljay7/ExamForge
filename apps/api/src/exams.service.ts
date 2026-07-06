@@ -14,10 +14,15 @@ export class ExamsService {
   ) {}
 
   async create(userId: string, dto: CreateExamDto) {
+    const me = await this.prisma.user.findUnique({
+      where: { id: userId },
+      select: { llmProvider: true },
+    });
     const generated = await this.ai.generateForSections(
       dto.sections,
       dto.numQuestions,
       dto.difficulty,
+      me?.llmProvider,
     );
 
     const timeLimitSec = dto.timeLimitMinutes
@@ -139,16 +144,23 @@ export class ExamsService {
 
     const sections = exam.sections as unknown as Section[];
     const section = sections[question.sectionIndex] ?? sections[0];
-    const siblings = await this.prisma.question.findMany({
-      where: { examId, NOT: { id: questionId } },
-      select: { text: true },
-    });
+    const [siblings, me] = await Promise.all([
+      this.prisma.question.findMany({
+        where: { examId, NOT: { id: questionId } },
+        select: { text: true },
+      }),
+      this.prisma.user.findUnique({
+        where: { id: userId },
+        select: { llmProvider: true },
+      }),
+    ]);
 
     const [fresh] = await this.ai.generateQuestions(
       section.content,
       1,
       exam.difficulty,
       siblings.map((s) => s.text),
+      me?.llmProvider,
     );
 
     return this.prisma.question.update({
@@ -450,6 +462,12 @@ export class ExamsService {
   }
 
   // ---------- helpers ----------
+
+  async remove(userId: string, examId: string) {
+    await this.assertOwner(userId, examId);
+    await this.prisma.exam.delete({ where: { id: examId } });
+    return { id: examId };
+  }
 
   private async assertOwner(userId: string, examId: string) {
     const exam = await this.prisma.exam.findFirst({

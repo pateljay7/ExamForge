@@ -7,14 +7,26 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+model Role {
+  id          String   @id @default(cuid())
+  name        String   @unique
+  isSystem    Boolean  @default(false) // Admin/User — not editable or deletable
+  permissions Json // { [module]: { [action]: boolean } }
+  createdAt   DateTime @default(now())
+  users       User[]
+}
+
 model User {
-  id        String    @id @default(cuid())
-  email     String    @unique
-  name      String?
-  password  String
-  createdAt DateTime  @default(now())
-  exams     Exam[]
-  attempts  Attempt[]
+  id          String    @id @default(cuid())
+  email       String    @unique
+  name        String?
+  password    String
+  roleId      String?
+  role        Role?     @relation(fields: [roleId], references: [id])
+  llmProvider String    @default("claude") // claude | gemini
+  createdAt   DateTime  @default(now())
+  exams       Exam[]
+  attempts    Attempt[]
 }
 
 model Exam {

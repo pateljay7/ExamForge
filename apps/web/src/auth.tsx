@@ -1,10 +1,13 @@
-import { createContext, useContext, useState, ReactNode } from 'react';
-import { api, setToken, clearToken } from './api';
+import { createContext, useContext, useEffect, useState, ReactNode } from 'react';
+import { api, getToken, setToken, clearToken } from './api';
 
-export type User = { id: string; email: string; name?: string };
+export type Permissions = Record<string, Record<string, boolean>>;
+export type Role = { name: string; isSystem: boolean; permissions: Permissions } | null;
+export type User = { id: string; email: string; name?: string; role?: Role };
 
 type AuthContextType = {
   user: User | null;
+  can: (permission: string) => boolean;
   login: (email: string, password: string) => Promise<void>;
   signup: (email: string, password: string, name?: string) => Promise<void>;
   logout: () => void;
@@ -26,10 +29,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setUser(res.user);
   }
 
+  function can(permission: string): boolean {
+    const [module, action] = permission.split(':');
+    return !!user?.role?.permissions?.[module]?.[action];
+  }
+
   return (
     <AuthContext.Provider
       value={{
         user,
+        can,
         login: async (email, password) =>
           persist(await api.login({ email, password })),
         signup: async (email, password, name) =>

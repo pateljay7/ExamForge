@@ -17,7 +17,9 @@ type Exam = {
 
 export default function Home() {
   const nav = useNavigate();
-  const { user } = useAuth();
+  const { user, can } = useAuth();
+  const canCreate = can('exams:create');
+  const canEditExams = can('exams:edit');
   const [exams, setExams] = useState<Exam[] | null>(null);
   const [error, setError] = useState('');
   const [search, setSearch] = useState('');
@@ -106,7 +108,9 @@ export default function Home() {
           <h1>Welcome back{firstName ? `, ${firstName}` : ''} 👋</h1>
           <p>Generate a practice exam from any material, then test yourself.</p>
         </div>
-        <Link to="/create" className="btn btn-lg btn-on-dark">＋ New Exam</Link>
+        {canCreate && (
+          <Link to="/create" className="btn btn-lg btn-on-dark">＋ New Exam</Link>
+        )}
       </div>
 
       {error && <p className="error">{error}</p>}
@@ -162,10 +166,18 @@ export default function Home() {
         <div className="card empty">
           <div className="emoji">📚</div>
           <h2>No exams yet</h2>
-          <p className="muted">Paste your notes and let AI write the questions.</p>
-          <Link to="/create" className="btn" style={{ marginTop: 14 }}>
-            Create your first exam
-          </Link>
+          {canCreate ? (
+            <>
+              <p className="muted">Paste your notes and let AI write the questions.</p>
+              <Link to="/create" className="btn" style={{ marginTop: 14 }}>
+                Create your first exam
+              </Link>
+            </>
+          ) : (
+            <p className="muted">
+              Exams shared with you will appear here. Open a shared link to take one.
+            </p>
+          )}
         </div>
       )}
 
@@ -202,22 +214,26 @@ export default function Home() {
                     : '○ Not attempted'}
               </span>
             </div>
-            <div className="card-actions">
-              <button className="btn-ghost" onClick={(ev) => clone(e, ev)}>
-                ⧉ Clone
-              </button>
-              {e.status === 'published' && (
-                <button className="btn-ghost" onClick={(ev) => toggleShare(e, ev)}>
-                  {e.isShared ? 'Unshare' : '🔗 Share'}
-                </button>
-              )}
-              {e.isShared && e.shareCode && (
-                <button className="btn-ghost" onClick={(ev) => copyLink(e, ev)}>
-                  Copy link
-                </button>
-              )}
-              {copied === e.id && <span className="success-note">Link copied ✓</span>}
-            </div>
+            {(canCreate || canEditExams) && (
+              <div className="card-actions">
+                {canCreate && (
+                  <button className="btn-ghost" onClick={(ev) => clone(e, ev)}>
+                    ⧉ Clone
+                  </button>
+                )}
+                {canEditExams && e.status === 'published' && (
+                  <button className="btn-ghost" onClick={(ev) => toggleShare(e, ev)}>
+                    {e.isShared ? 'Unshare' : '🔗 Share'}
+                  </button>
+                )}
+                {canEditExams && e.isShared && e.shareCode && (
+                  <button className="btn-ghost" onClick={(ev) => copyLink(e, ev)}>
+                    Copy link
+                  </button>
+                )}
+                {copied === e.id && <span className="success-note">Link copied ✓</span>}
+              </div>
+            )}
           </div>
         ))}
       </div>
