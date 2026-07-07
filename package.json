@@ -1,5 +1,5 @@
 {
-  "name": "self-examination-portal",
+  "name": "ExamForge",
   "private": true,
   "workspaces": ["apps/*"],
   "scripts": {
