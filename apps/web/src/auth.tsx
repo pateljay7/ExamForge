@@ -29,6 +29,22 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setUser(res.user);
   }
 
+  // Re-fetch the current user on load so a stale cached role (or a role
+  // change made elsewhere) is picked up without requiring a re-login.
+  useEffect(() => {
+    if (!getToken()) return;
+    api
+      .me()
+      .then((res: { user: User }) => {
+        localStorage.setItem(USER_KEY, JSON.stringify(res.user));
+        setUser(res.user);
+      })
+      .catch(() => {
+        // Invalid/expired token — api.ts's 401 handler already clears
+        // storage and redirects; nothing else to do here.
+      });
+  }, []);
+
   function can(permission: string): boolean {
     const [module, action] = permission.split(':');
     return !!user?.role?.permissions?.[module]?.[action];
