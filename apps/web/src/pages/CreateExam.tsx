@@ -159,10 +159,14 @@ export default function CreateExam() {
               <textarea
                 value={sec.content}
                 onChange={(e) => updateSection(i, { content: e.target.value })}
-                placeholder="Paste the material for this section…"
+                placeholder="Paste the material for this section, or include a public URL to a page with the content…"
                 required
                 style={{ minHeight: 120, marginTop: 8 }}
               />
+              <p className="hint" style={{ marginTop: 4 }}>
+                Any http(s) link in the text is read directly by the AI — the page must be
+                publicly accessible without sign-in.
+              </p>
               <div className="weight-row">
                 <span className="muted">Weight</span>
                 <input

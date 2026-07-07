@@ -74,6 +74,9 @@ export class AiService {
     avoid: string[] = [],
     providerName?: string,
   ): Promise<GeneratedQuestion[]> {
+    // If `content` references a URL, the provider itself is given web tools
+    // (Claude: WebFetch/WebSearch; Gemini: URL context grounding) and reads
+    // it directly — no server-side scraping here.
     const avoidBlock = avoid.length
       ? `\nDo NOT repeat or closely paraphrase any of these existing questions:\n${avoid
           .map((t) => `- ${t}`)

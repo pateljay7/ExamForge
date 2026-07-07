@@ -1,6 +1,8 @@
-import { Injectable, InternalServerErrorException } from '@nestjs/common';
+import { BadRequestException, Injectable, InternalServerErrorException } from '@nestjs/common';
 import { GoogleGenAI } from '@google/genai';
 import { LlmProvider } from './llm.types';
+
+const URL_RE = /https?:\/\/\S+/i;
 
 @Injectable()
 export class GeminiProvider implements LlmProvider {
@@ -19,14 +21,30 @@ export class GeminiProvider implements LlmProvider {
   }
 
   async generate(system: string, prompt: string): Promise<string> {
-    const res = await this.ai.models.generateContent({
-      model: process.env.GEMINI_MODEL || 'gemini-2.5-flash',
-      contents: prompt,
-      config: {
-        systemInstruction: system,
-        responseMimeType: 'application/json',
-      },
-    });
-    return res.text ?? '';
+    // Only ground on the URL (Google-hosted fetch) when the prompt actually
+    // references one — the common no-URL case is unaffected.
+    const needsWeb = URL_RE.test(prompt);
+
+    try {
+      const res = await this.ai.models.generateContent({
+        model: process.env.GEMINI_MODEL || 'gemini-2.5-flash',
+        contents: prompt,
+        config: {
+          systemInstruction: system,
+          responseMimeType: 'application/json',
+          ...(needsWeb && { tools: [{ urlContext: {} }] }),
+        },
+      });
+      return res.text ?? '';
+    } catch (err) {
+      if (needsWeb) {
+        throw new BadRequestException(
+          `Gemini couldn't finish generating from that content: ${
+            err instanceof Error ? err.message : 'unknown error'
+          }. Try a different URL or paste the content directly.`,
+        );
+      }
+      throw err;
+    }
   }
 }
