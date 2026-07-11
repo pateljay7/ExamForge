@@ -1,12 +1,15 @@
 const TOKEN_KEY = 'exam_token';
 
+// Falls back to relative '/api' (Vite dev proxy / same-origin prod build) when unset.
+const BASE_URL = import.meta.env.BACKEND_BASE_URL || '/api';
+
 export const getToken = () => localStorage.getItem(TOKEN_KEY);
 export const setToken = (t: string) => localStorage.setItem(TOKEN_KEY, t);
 export const clearToken = () => localStorage.removeItem(TOKEN_KEY);
 
 async function req(path: string, options?: RequestInit) {
   const token = getToken();
-  const res = await fetch('/api' + path, {
+  const res = await fetch(BASE_URL + path, {
     headers: {
       'Content-Type': 'application/json',
       ...(token ? { Authorization: `Bearer ${token}` } : {}),

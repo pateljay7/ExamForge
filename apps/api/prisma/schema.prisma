@@ -37,7 +37,7 @@ model Exam {
   sections         Json // [{ title?: string, content: string, weight: number }]
   difficulty       String // easy | medium | hard
   status           String     @default("draft") // draft | published
-  tags             String[]   @default([])
+  tags             Json       @default("[]") // string[] — Json (not a native array) so sqlite can store it too
   timeLimitSec     Int? // preset countdown limit; null = no limit
   timerEnabled     Boolean    @default(false) // reference stopwatch (only when no limit)
   shuffleQuestions Boolean    @default(false)

@@ -16,15 +16,18 @@ Run from repo root:
 
 API-only (`-w api`):
 - `npm run dev -w api` — Nest watch mode.
-- `npm run prisma:migrate -w api` — create/apply a migration in dev (`prisma migrate dev`).
-- `npm run prisma:deploy -w api` — apply migrations without generating (prod).
+- `npm run prisma:migrate -w api` — create/apply a migration in dev (`prisma migrate dev`). Postgres only — the committed migration history is Postgres SQL.
+- `npm run prisma:deploy -w api` — apply migrations without generating (prod, Postgres only).
 - `npm run prisma:generate -w api` — regenerate the Prisma client after editing `schema.prisma`.
+- `npm run prisma:push -w api` — sync schema without migration history (sqlite; also fine for a scratch Postgres DB).
 
 No test suite or linter is configured.
 
 ## Environment
 
-Copy `apps/api/.env.example` → `apps/api/.env`. Required: `DATABASE_URL` (PostgreSQL), `CLAUDE_CODE_OAUTH_TOKEN` (from `claude setup-token`), `JWT_SECRET`. `CLAUDE_OAUTH_TOKEN` is also accepted — `AiService`'s constructor maps it to `CLAUDE_CODE_OAUTH_TOKEN`, which is what the SDK actually reads.
+Copy `apps/api/.env.example` → `apps/api/.env`. Required: `DATABASE_URL`, `CLAUDE_CODE_OAUTH_TOKEN` (from `claude setup-token`), `JWT_SECRET`. `CLAUDE_OAUTH_TOKEN` is also accepted — `AiService`'s constructor maps it to `CLAUDE_CODE_OAUTH_TOKEN`, which is what the SDK actually reads.
+
+**DB provider** (`postgresql` default, or `sqlite`): set via `DATABASE_PROVIDER` + a matching `DATABASE_URL`. Prisma's `datasource.provider` can't read `env()`, so `apps/api/prisma/set-provider.js` rewrites the literal in `schema.prisma` from `DATABASE_PROVIDER` before every `prisma:*` script runs (also wired into `predev`/`prebuild`) — never hand-edit that line yourself, it gets overwritten. The committed migration history under `apps/api/prisma/migrations/` is Postgres-only SQL (locked via `migration_lock.toml`); switching to sqlite means using `prisma:push` instead of `prisma:migrate`/`prisma:deploy`.
 
 ## Architecture
 
@@ -40,9 +43,9 @@ Copy `apps/api/.env.example` → `apps/api/.env`. Required: `DATABASE_URL` (Post
 
 **DTO validation**: `main.ts` uses a global `ValidationPipe({ whitelist: true, transform: true })`, so all input shaping lives in class-validator decorators in `dto.ts` / `auth/auth.dto.ts`. `whitelist` strips unknown properties — add a decorated field to the DTO or it won't reach the handler.
 
-**Prisma `Json` columns**: `Exam.sections`, `Question.options`, `Attempt.answers` are `Json`. TypeScript can't type them, so casts (`as any`) and manual shaping appear at those boundaries — the shapes are documented in inline comments in `schema.prisma`.
+**Prisma `Json` columns**: `Exam.sections`, `Exam.tags`, `Question.options`, `Attempt.answers` are `Json`. TypeScript can't type them, so casts (`as any`) and manual shaping appear at those boundaries — the shapes are documented in inline comments in `schema.prisma`. `tags` is `Json` rather than a native array specifically so the schema also works on sqlite.
 
-**Web** (`apps/web/src/`): React Router. `main.tsx` wraps protected routes in `<Protected>` (redirects to `/login` if no user) + `<Layout>`. `auth.tsx` holds auth context, persisting token + user to `localStorage`. `api.ts` centralizes all fetches: attaches the Bearer token, and on any `401` clears storage and hard-redirects to `/login`. All server calls go through the `api` object — add new endpoints there.
+**Web** (`apps/web/src/`): React Router. `main.tsx` wraps protected routes in `<Protected>` (redirects to `/login` if no user) + `<Layout>`. `auth.tsx` holds auth context, persisting token + user to `localStorage`. `api.ts` centralizes all fetches: attaches the Bearer token, and on any `401` clears storage and hard-redirects to `/login`. All server calls go through the `api` object — add new endpoints there. Requests are prefixed with `BACKEND_BASE_URL` (`apps/web/.env.example`), falling back to relative `/api` (Vite dev proxy / same-origin prod). `vite.config.ts` whitelists the `BACKEND_` prefix (alongside Vite's default `VITE_`) so it reaches `import.meta.env` — see `src/vite-env.d.ts` for the type.
 
 ## Conventions
 

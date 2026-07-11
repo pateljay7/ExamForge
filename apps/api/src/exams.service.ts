@@ -205,7 +205,7 @@ export class ExamsService {
         sections: exam.sections as any,
         difficulty: exam.difficulty,
         status: 'draft', // clones start as drafts for tweaking
-        tags: exam.tags,
+        tags: exam.tags as any,
         timeLimitSec: exam.timeLimitSec,
         timerEnabled: exam.timerEnabled,
         shuffleQuestions: exam.shuffleQuestions,
