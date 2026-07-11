@@ -644,6 +644,11 @@ button:disabled {
   border-color: var(--border-strong);
   transform: translateY(-1px);
 }
+.btn-ghost.danger:hover {
+  background: var(--rose-soft) !important;
+  color: var(--rose) !important;
+  border-color: var(--rose-border);
+}
 .btn-block {
   width: 100%;
 }

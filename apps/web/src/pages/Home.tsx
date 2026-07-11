@@ -20,6 +20,7 @@ export default function Home() {
   const { user, can } = useAuth();
   const canCreate = can('exams:create');
   const canEditExams = can('exams:edit');
+  const canDelete = can('exams:delete');
   const [exams, setExams] = useState<Exam[] | null>(null);
   const [error, setError] = useState('');
   const [search, setSearch] = useState('');
@@ -99,6 +100,17 @@ export default function Home() {
       .catch(() => {});
     setCopied(e.id);
     setTimeout(() => setCopied(''), 2500);
+  }
+
+  async function remove(e: Exam, ev: React.MouseEvent) {
+    ev.stopPropagation();
+    if (!confirm(`Delete "${e.title}"? This also deletes its questions and attempt history.`)) return;
+    try {
+      await api.deleteExam(e.id);
+      setExams((prev) => (prev ?? []).filter((x) => x.id !== e.id));
+    } catch (err: any) {
+      setError(err.message);
+    }
   }
 
   return (
@@ -214,7 +226,7 @@ export default function Home() {
                     : '○ Not attempted'}
               </span>
             </div>
-            {(canCreate || canEditExams) && (
+            {(canCreate || canEditExams || canDelete) && (
               <div className="card-actions">
                 {canCreate && (
                   <button className="btn-ghost" onClick={(ev) => clone(e, ev)}>
@@ -229,6 +241,11 @@ export default function Home() {
                 {canEditExams && e.isShared && e.shareCode && (
                   <button className="btn-ghost" onClick={(ev) => copyLink(e, ev)}>
                     Copy link
+                  </button>
+                )}
+                {canDelete && (
+                  <button className="btn-ghost danger" onClick={(ev) => remove(e, ev)}>
+                    🗑 Delete
                   </button>
                 )}
                 {copied === e.id && <span className="success-note">Link copied ✓</span>}
